@@ -125,6 +125,9 @@
 				RelativePath="..\src\camera.cpp">
 			</File>
 			<File
+				RelativePath="..\src\scene.cpp">
+			</File>
+			<File
 				RelativePath="..\src\theme.cpp">
 			</File>
 			<File
@@ -152,6 +155,9 @@
 			</File>
 			<File
 				RelativePath="..\src\camera.h">
+			</File>
+			<File
+				RelativePath="..\src\scene.h">
 			</File>
 			<File
 				RelativePath="..\src\theme.h">

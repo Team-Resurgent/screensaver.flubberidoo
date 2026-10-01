@@ -18,6 +18,7 @@
 #include "theme.h"
 #include "blob.h"
 #include "camera.h"
+#include "scene.h"
 
 #include <xtl.h>
 #include <string>
@@ -67,7 +68,9 @@ private:
 
   CCamera   m_camera;
   FlubPulse m_pulses[12];
+  f32       m_eBase, m_ePulse, m_eBlob;   // intensityAt(m_time), computed per frame
 
+  CScene                  m_scene;
   CBlobSim*               m_blob;
   LPDIRECT3DVERTEXBUFFER8 m_blobVB;   // strip-ordered body vertices (dynamic)
   int                     m_blobStripVerts;  // == strip index count

@@ -66,6 +66,7 @@ static Energy IntensityAt(f32 t, const FlubPulse* pulses)
 /* --------------------------------------------------------------- CFlubber - */
 CFlubber::CFlubber()
   : m_dev(null), m_x(0), m_y(0), m_w(0), m_h(0), m_time(0.0f),
+    m_eBase(0.0f), m_ePulse(0.0f), m_eBlob(0.0f),
     m_blob(null), m_blobVB(null), m_blobStripVerts(0)
 {
   m_view = Mat4::Identity();
@@ -111,11 +112,16 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
     m_blobVB = null;
     return false;
   }
+
+  // Static scene meshes (per-mesh expanded triangle-list buffers). Non-fatal if
+  // it fails: DrawScene guards each mesh, so the blob still renders.
+  m_scene.Create(m_dev);
   return true;
 }
 
 void CFlubber::Release()
 {
+  m_scene.Release();
   SAFE_RELEASE(m_blobVB);
   SAFE_DELETE(m_blob);
   m_dev = null;   // XBMC / the runner owns the device
@@ -168,6 +174,12 @@ bool CFlubber::Draw()
   m_dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
   SetBaseState();
 
+  // Intensity once per frame; advance the blob sim before any pass reads it
+  // (the scene light position depends on the bloblet positions).
+  Energy e = IntensityAt(m_time, m_pulses);
+  m_eBase = e.base; m_ePulse = e.pulse; m_eBlob = e.blob;
+  if (m_blob) m_blob->Seek(m_time);
+
   if (m_theme.sceneRender)  DrawScene();
   if (m_theme.blobRender)   DrawBlob();
   if (m_theme.shieldRender) DrawShields();
@@ -186,13 +198,14 @@ void CFlubber::DrawBlob()
   if (!m_blob || !m_blobVB)
     return;
 
-  m_blob->Seek(m_time);
+  // The blob sim was advanced in Draw(); the scene may have left lighting on.
+  d3dSetRenderState(D3DRS_LIGHTING, FALSE);
+  d3dSetRenderState(D3DRS_SPECULARENABLE, FALSE);
 
-  Energy energy = IntensityAt(m_time, m_pulses);
-  f32 pulse = energy.pulse < 0.0f ? 0.0f : energy.pulse;
+  f32 pulse = m_ePulse < 0.0f ? 0.0f : m_ePulse;
   f32 curRad = BLOB_RADIUS * (1.0f + 1.3f * (f32)sqrt(pulse));
 
-  f32 colorIntensity = BLOB_BASE_INTENSITY + 4.0f * (1.2f * energy.base + 0.8f * energy.pulse);
+  f32 colorIntensity = BLOB_BASE_INTENSITY + 4.0f * (1.2f * m_eBase + 0.8f * m_ePulse);
   f32 tFade = m_time * 4.0f; if (tFade > 1.0f) tFade = 1.0f;
   colorIntensity *= tFade;
 
@@ -256,7 +269,15 @@ void CFlubber::DrawBlob()
   d3dSetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 }
 
+// --- scene geometry: 271 instances, hardware point light (scene_phong) -----
+void CFlubber::DrawScene()
+{
+  if (!m_blob)
+    return;
+  f32 fpos = (m_time - SCENE_ANIM_START_TIME) / SCENE_ANIM_LEN;
+  m_scene.Draw(m_dev, fpos, m_blob, m_theme, m_eye, m_eBlob);
+}
+
 // --- pass hooks (filled in by later slices) ------------------------------
-void CFlubber::DrawScene()   {}
 void CFlubber::DrawShields() {}
 void CFlubber::DrawPlasma()  {}
