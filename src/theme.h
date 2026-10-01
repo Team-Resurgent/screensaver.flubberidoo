@@ -3,8 +3,8 @@
  *
  *  Mirrors the FlubberForge theme.js defaults and key set. Colors are stored as
  *  CRGBA (0..1 per channel). Only keys that affect the looping screensaver are
- *  kept; the original animation's end-logo keys (Slash*/TradeMark*/Xbox*/Brand*)
- *  parse-and-ignore so existing INIs still load.
+ *  kept; the original animation's end-logo keys (the Slash, TradeMark, Xbox and
+ *  Brand families) parse-and-ignore so existing INIs still load.
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
  */

@@ -119,6 +119,12 @@
 				RelativePath="..\src\flubber.cpp">
 			</File>
 			<File
+				RelativePath="..\src\blob.cpp">
+			</File>
+			<File
+				RelativePath="..\src\camera.cpp">
+			</File>
+			<File
 				RelativePath="..\src\theme.cpp">
 			</File>
 			<File
@@ -136,7 +142,16 @@
 				RelativePath="..\src\flubber.h">
 			</File>
 			<File
+				RelativePath="..\src\flubconst.h">
+			</File>
+			<File
 				RelativePath="..\src\flubmath.h">
+			</File>
+			<File
+				RelativePath="..\src\blob.h">
+			</File>
+			<File
+				RelativePath="..\src\camera.h">
 			</File>
 			<File
 				RelativePath="..\src\theme.h">

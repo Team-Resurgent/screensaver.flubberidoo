@@ -101,6 +101,9 @@ public:
 };
 
 inline f32 Clamp(f32 x, f32 min, f32 max) { return (x <= min ? min : (x >= max ? max : x)); }
+// 2-arg min/max (VC7.1's <math.h> has no C99 fmin/fmax).
+inline f32 FMin(f32 a, f32 b) { return a < b ? a : b; }
+inline f32 FMax(f32 a, f32 b) { return a > b ? a : b; }
 inline f32 RandFloat(void) { return (1.0f / RAND_MAX) * ((f32)rand()); }
 inline f32 RandFloat(f32 min, f32 max){ return min + ((max-min)*RandFloat()); }
 inline int Rand(int max) { return rand() % max; }

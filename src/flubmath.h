@@ -93,13 +93,18 @@ struct Mat4
 
 inline f32 Clampf(f32 x, f32 lo, f32 hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
-/* Left-handed view matrix (row-major). Mirrors camera.js lookAtMatrix / D3D LH.
- * 'up' is world Z (0,0,1) for this scene. */
+/* View matrix (row-major), matching FlubberForge camera.js lookAtMatrix exactly:
+ * xAxis = normalize(cross(forward, up)), yAxis = cross(xAxis, forward). This is
+ * NOT the stock D3DXMatrixLookAtLH basis (which uses cross(up, forward)); the
+ * difference negates X, so using the stock one would render x-mirrored vs the
+ * reference. 'up' is world Z (0,0,1) for this scene. */
 inline Mat4 BuildLookAtLH(const Vec3& eye, const Vec3& at, const Vec3& up)
 {
   Vec3 z = Normalize(at - eye);
-  Vec3 x = Normalize(Cross(up, z));
-  Vec3 y = Cross(z, x);
+  Vec3 x = Cross(z, up);
+  if (Length(x) < 1e-5f) x = Vec3(1, 0, 0);
+  x = Normalize(x);
+  Vec3 y = Cross(x, z);
   Mat4 r = Mat4::Identity();
   r.m[0] = x.x; r.m[1] = y.x; r.m[2]  = z.x;
   r.m[4] = x.y; r.m[5] = y.y; r.m[6]  = z.y;

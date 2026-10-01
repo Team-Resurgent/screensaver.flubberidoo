@@ -5,8 +5,9 @@ iterate on and **debug** it without a full XBMC/Kodi install. Built with Visual
 Studio .NET 2003 + the Xbox XDK.
 
 It compiles the **unmodified** screensaver adapter + engine (`../src/main.cpp`,
-`flubber.cpp`, `theme.cpp`, `geometry_data.cpp`) straight into the `.xbe` against
-the lightweight Kodi stubs in [`stubs/`](stubs), then drives `Start()` /
+`flubber.cpp`, `blob.cpp`, `camera.cpp`, `theme.cpp`, `geometry_data.cpp`)
+straight into the `.xbe` against the lightweight Kodi stubs in
+[`stubs/`](stubs), then drives `Start()` /
 `Render()` / `Stop()` itself. Because the screensaver code is compiled into the
 runner, it is **fully source-level debuggable** in Visual Studio (breakpoints,
 stepping, watches).

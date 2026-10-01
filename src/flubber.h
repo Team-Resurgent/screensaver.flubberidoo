@@ -14,22 +14,22 @@
 
 #include "types.h"
 #include "flubmath.h"
+#include "flubconst.h"
 #include "theme.h"
+#include "blob.h"
+#include "camera.h"
 
 #include <xtl.h>
 #include <string>
 
-// Timeline (seconds), from FlubberForge camera.js. The loopable window is
-// [0, FINISH_START_TIME); everything at/after FINISH_START_TIME is the finish
-// dive + logo, which this screensaver never renders.
-namespace flubtime
-{
-  const f32 FINISH_START_TIME    = 5.2f;   // loop point
-  const f32 SCENE_ANIM_START     = 0.85f;  // scene keyframe window start
-  const f32 SCENE_ANIM_LEN       = 4.5f;   // ... length (ends 5.35)
-  const f32 BLOB_STATIC_END_TIME = 0.6f;   // blob frozen before this
-  const f32 DEMO_TOTAL_TIME      = 8.0f;   // full original demo (camera clamps to this)
-}
+// The loopable window is [0, flubtime::FINISH_START_TIME); everything at/after
+// it is the finish dive + logo, which this screensaver never renders.
+
+// Fixed-function vertex for the blob body: world-space position + packed diffuse.
+struct BlobVtx { f32 x, y, z; DWORD color; };
+
+// One of the twelve intensity pulses (anim.js makePulses).
+struct FlubPulse { f32 x, y, z; };
 
 class CFlubber
 {
@@ -63,4 +63,13 @@ private:
   f32   m_time;                 // current time in [0, FINISH_START_TIME)
   Mat4  m_view;
   Mat4  m_proj;
+  Vec3  m_eye;                  // current camera position (for blob fresnel)
+
+  CCamera   m_camera;
+  FlubPulse m_pulses[12];
+
+  CBlobSim*               m_blob;
+  LPDIRECT3DVERTEXBUFFER8 m_blobVB;   // strip-ordered body vertices (dynamic)
+  int                     m_blobStripVerts;  // == strip index count
+  std::vector<BlobVtx>    m_blobUnique;       // per-unique-vertex scratch
 };
