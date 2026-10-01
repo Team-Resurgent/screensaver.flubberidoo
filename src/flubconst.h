@@ -37,4 +37,7 @@ namespace flubtime
 
   const f32 PUSHOUT_START_TIME       = 0.5f;
   const f32 PUSHOUT_DELTA            = 2.7f;
+
+  const f32 GLOW_FADE_CIRCLE_START   = FINISH_START_TIME - 0.5f;          // 4.7
+  const f32 GLOW_FADE_SCREEN_START   = GLOW_FADE_CIRCLE_START + 0.3f;     // 5.0
 }

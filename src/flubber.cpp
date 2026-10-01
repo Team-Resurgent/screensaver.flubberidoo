@@ -104,12 +104,41 @@ static bool BuildGlowTexture(LPDIRECT3DDEVICE8 dev, LPDIRECT3DTEXTURE8* out)
   return true;
 }
 
+// Radial exp() falloff for the plasma: value = exp(-rho*6), rho = 2*dist from
+// centre (0 at centre, 1 at edge). Stored in all channels; linear texture.
+static bool BuildPlasmaTexture(LPDIRECT3DDEVICE8 dev, LPDIRECT3DTEXTURE8* out)
+{
+  const int size = 128;
+  LPDIRECT3DTEXTURE8 tex = 0;
+  if (FAILED(dev->CreateTexture(size, size, 1, 0, D3DFMT_LIN_A8R8G8B8, D3DPOOL_MANAGED, &tex)))
+    return false;
+  D3DLOCKED_RECT lr;
+  if (FAILED(tex->LockRect(0, &lr, NULL, 0))) { tex->Release(); return false; }
+  BYTE* basep = (BYTE*)lr.pBits;
+  for (int y = 0; y < size; y++)
+  {
+    DWORD* rowp = (DWORD*)(basep + y * lr.Pitch);
+    for (int x = 0; x < size; x++)
+    {
+      f32 dx = (f32)x / (size - 1) - 0.5f, dy = (f32)y / (size - 1) - 0.5f;
+      f32 rho = 2.0f * (f32)sqrt(dx * dx + dy * dy);
+      f32 v = (f32)exp(-rho * 6.0);
+      unsigned int b = (unsigned int)(v * 255.0f + 0.5f); if (b > 255) b = 255;
+      rowp[x] = (b << 24) | (b << 16) | (b << 8) | b;
+    }
+  }
+  tex->UnlockRect(0);
+  *out = tex;
+  return true;
+}
+
 /* --------------------------------------------------------------- CFlubber - */
 CFlubber::CFlubber()
   : m_dev(null), m_x(0), m_y(0), m_w(0), m_h(0), m_time(0.0f),
     m_eBase(0.0f), m_ePulse(0.0f), m_eBlob(0.0f),
     m_blob(null), m_blobVB(null), m_blobStripVerts(0),
-    m_glowTex(null), m_haloVB(null), m_blobletVB(null), m_blobletStripVerts(0)
+    m_glowTex(null), m_haloVB(null), m_blobletVB(null), m_blobletStripVerts(0),
+    m_plasmaTex(null), m_plasmaVB(null)
 {
   m_view = Mat4::Identity();
   m_proj = Mat4::Identity();
@@ -174,6 +203,11 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
   m_dev->CreateVertexBuffer(m_blobletStripVerts * sizeof(BlobVtx),
                             D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
                             D3DFVF_XYZ | D3DFVF_DIFFUSE, D3DPOOL_DEFAULT, &m_blobletVB);
+
+  // Plasma background glow: an exp() falloff texture + a screen-space quad.
+  BuildPlasmaTexture(m_dev, &m_plasmaTex);
+  m_dev->CreateVertexBuffer(4 * sizeof(PlasmaVtx), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
+                            D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &m_plasmaVB);
   return true;
 }
 
@@ -181,6 +215,8 @@ void CFlubber::Release()
 {
   m_shieldMgr.Release();
   m_scene.Release();
+  SAFE_RELEASE(m_plasmaVB);
+  SAFE_RELEASE(m_plasmaTex);
   SAFE_RELEASE(m_blobletVB);
   SAFE_RELEASE(m_haloVB);
   SAFE_RELEASE(m_glowTex);
@@ -473,5 +509,92 @@ void CFlubber::DrawShields()
   m_shieldMgr.Draw(m_dev, m_time, m_theme, m_eye, m_look, m_eBlob);
 }
 
-// --- pass hooks (filled in by later slices) ------------------------------
-void CFlubber::DrawPlasma()  {}
+// --- plasma / fog: additive radial glow centred on the blob's screen pos ---
+// FS_FOG = C1*uI*exp(-d*3.2) + C2*uGlow*exp(-d*1.6) + C3*uGlow*exp(-d*5.0), with
+// d the screen-UV distance from the blob origin. Realised as three additive
+// screen-space quads sampling an exp() texture, each sized span=6/k so the
+// texture's exp(-rho*6) profile reproduces exp(-d*k).
+void CFlubber::DrawPlasma()
+{
+  if (!m_plasmaTex || !m_plasmaVB || m_w <= 0 || m_h <= 0)
+    return;
+
+  // Project the blob origin (0,0,0) to screen UV (D3D y-down).
+  Mat4 vp = m_view * m_proj;
+  f32 ow = vp.m[15]; if (ow == 0.0f) ow = 1.0f;
+  f32 ndcx = vp.m[12] / ow, ndcy = vp.m[13] / ow;
+  f32 ou = ndcx * 0.5f + 0.5f;
+  f32 ov = 0.5f - ndcy * 0.5f;
+
+  f32 uI = m_eBlob * 0.7f - 0.1f; if (uI < 0.0f) uI = 0.0f;
+  f32 glow;
+  if (m_time < BLOB_STATIC_END_TIME)
+  {
+    f32 u = m_time < 0.12f ? m_time / 0.12f : 1.0f - (m_time - 0.12f) / BLOB_STATIC_END_TIME;
+    glow = Clampf(u, 0.0f, 1.0f);
+  }
+  else glow = 0.75f * Clampf((m_time - GLOW_FADE_SCREEN_START) / 0.25f, 0.0f, 1.0f);
+
+  const CRGBA cols[3] = { m_theme.plasma1, m_theme.plasma2, m_theme.plasma3 };
+  const f32 scale[3] = { uI, glow, glow };
+  const f32 krate[3] = { 3.2f, 1.6f, 5.0f };
+
+  bool any = false;
+  for (int i = 0; i < 3; i++) if (scale[i] > 0.001f) any = true;
+  if (!any) return;
+
+  // Overlay state: additive, no depth test/write.
+  d3dSetRenderState(D3DRS_LIGHTING, FALSE);
+  d3dSetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+  d3dSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+  d3dSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  d3dSetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+  d3dSetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
+  d3dSetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+  m_dev->SetTexture(0, m_plasmaTex);
+  d3dSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+  d3dSetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+  d3dSetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
+  d3dSetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+  d3dSetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
+  d3dSetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+  d3dSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+  d3dSetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+  d3dSetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+  d3dSetTextureStageState(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+  d3dSetTextureStageState(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+  d3dSetTextureStageState(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+  m_dev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_TEX1);
+
+  f32 W = (f32)m_w, H = (f32)m_h;
+  // screen corners as a triangle strip: TL, TR, BL, BR
+  const f32 cx[4] = { 0.0f, W, 0.0f, W };
+  const f32 cy[4] = { 0.0f, 0.0f, H, H };
+
+  for (int i = 0; i < 3; i++)
+  {
+    if (scale[i] <= 0.001f) continue;
+    f32 span = 6.0f / krate[i];
+    CRGBA tf(Clampf(cols[i].r * scale[i], 0.0f, 1.0f),
+             Clampf(cols[i].g * scale[i], 0.0f, 1.0f),
+             Clampf(cols[i].b * scale[i], 0.0f, 1.0f), 1.0f);
+    d3dSetRenderState(D3DRS_TEXTUREFACTOR, tf.RenderColor());
+
+    PlasmaVtx* v = 0;
+    if (FAILED(m_plasmaVB->Lock(0, 0, (BYTE**)&v, 0))) continue;
+    for (int c = 0; c < 4; c++)
+    {
+      f32 u = cx[c] / W, vv = cy[c] / H;   // normalized screen (0..1)
+      v[c].x = cx[c] - 0.5f; v[c].y = cy[c] - 0.5f; v[c].z = 0.0f; v[c].rhw = 1.0f;
+      v[c].u = ((u - ou) / span) * 0.5f + 0.5f;
+      v[c].v = ((vv - ov) / span) * 0.5f + 0.5f;
+    }
+    m_plasmaVB->Unlock();
+    m_dev->SetStreamSource(0, m_plasmaVB, sizeof(PlasmaVtx));
+    m_dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+  }
+
+  d3dSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+  d3dSetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
+  d3dSetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+}
