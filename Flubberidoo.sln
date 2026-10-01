@@ -1,9 +1,9 @@
 Microsoft Visual Studio Solution File, Format Version 8.00
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MatrixTrails", "matrixtrails.vcproj", "{DD54E288-DEC9-41D3-A1CB-A05645CD0787}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "flubberidoo", "src\flubberidoo.vcproj", "{DD54E288-DEC9-41D3-A1CB-A05645CD0787}"
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MatrixTrailsRunner", "..\test\MatrixTrailsRunner.vcproj", "{E6B7A1C2-3F4D-4A9B-8C21-7D5E9A0B1C34}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FlubberidooRunner", "test\FlubberidooRunner.vcproj", "{E6B7A1C2-3F4D-4A9B-8C21-7D5E9A0B1C34}"
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject

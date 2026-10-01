@@ -4,12 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - master
-      - xodi-binary-api
+      - main
   pull_request:
     branches:
-      - master
-      - xodi-binary-api
+      - main
 
 jobs:
   build:

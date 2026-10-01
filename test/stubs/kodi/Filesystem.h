@@ -1,5 +1,5 @@
 /*
- *  Stub of <kodi/Filesystem.h> for the standalone MatrixTrails runner.
+ *  Stub of <kodi/Filesystem.h> for the standalone Flubberidoo runner.
  *
  *  Only kodi::vfs::TranslateSpecialProtocol is used by src/main.cpp. With no Kodi
  *  VFS available, special:// paths can't be resolved, so the input is returned

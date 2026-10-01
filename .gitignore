@@ -11,3 +11,5 @@ screensaver.*.zip
 out/
 .vs/
 *.vcxproj.user
+# Windows
+Thumbs.db

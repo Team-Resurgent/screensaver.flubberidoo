@@ -1,5 +1,5 @@
 /*
- *  Stub of <kodi/addon-instance/Screensaver.h> for the standalone MatrixTrails runner.
+ *  Stub of <kodi/addon-instance/Screensaver.h> for the standalone Flubberidoo runner.
  *
  *  This is NOT the real Kodi addon dev-kit. It provides just enough of the
  *  kodi::addon::CAddonBase / CInstanceScreensaver surface for the unmodified

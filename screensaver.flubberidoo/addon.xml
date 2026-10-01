@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addon
-  id="screensaver.matrixtrails"
-  version="21.0.2"
-  name="Matrix trails"
-  provider-name="spiff">
+  id="screensaver.flubberidoo"
+  version="1.0.0"
+  name="Flubberidoo"
+  provider-name="Team Resurgent">
   <requires>
     <import addon="kodi.binary.global.main" minversion="2.0.0" version="2.0.2"/>
     <import addon="kodi.binary.global.filesystem" minversion="1.1.7" version="1.1.9"/>
@@ -11,19 +11,18 @@
   </requires>
   <extension
     point="xbmc.ui.screensaver"
-    library_xbox="MatrixTrails.xbs"/>
+    library_xbox="Flubberidoo.xbs"/>
   <extension point="xbmc.addon.metadata">
     <platform>xbox</platform>
     <license>GPL-2.0-or-later</license>
-    <source>https://github.com/xbmc4xbox/screensaver.matrixtrails</source>
+    <source>https://github.com/Team-Resurgent/screensaver.flubberidoo</source>
     <assets>
       <icon>resources/icon.png</icon>
       <fanart>resources/fanart.jpg</fanart>
       <screenshot>resources/screenshot-01.jpg</screenshot>
       <screenshot>resources/screenshot-02.jpg</screenshot>
-      <screenshot>resources/screenshot-01.jpg</screenshot>
     </assets>
-    <summary lang="en_GB">Matrix trails screensaver</summary>
-    <description lang="en_GB">The &quot;digital rain&quot; effect, as seen on the computer monitors in &quot;The Matrix&quot;.[CR][CR]In its settings you can also define your own colors and sizes of rain.</description>
+    <summary lang="en_GB">Flubberidoo boot-animation screensaver</summary>
+    <description lang="en_GB">A faithful D3D8 re-creation of the classic Xbox boot animation: the gooey &quot;flubber&quot; blob pulsing at the heart of a slowly rotating scene while the camera drifts around it, wrapped in shimmering shields. Loops endlessly (no end logo, no sound). Fully themeable from resources/bootanim.ini.</description>
   </extension>
 </addon>

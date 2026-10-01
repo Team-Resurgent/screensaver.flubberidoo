@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Flubberidoo is themed from resources/bootanim.ini (colors, camera path, which
+  layers render), not from Kodi settings, so there are no in-app settings. Edit
+  bootanim.ini to recolour the blob/scene/shields or pick a camera path.
+-->
+<settings version="1">
+  <section id="addon" label="0" help="0">
+    <category id="main" label="128" help="0">
+      <group id="1" label="0"/>
+    </category>
+  </section>
+</settings>

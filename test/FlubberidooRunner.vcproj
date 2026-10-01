@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="7.10"
-	Name="MatrixTrailsRunner"
+	Name="FlubberidooRunner"
 	ProjectGUID="{E6B7A1C2-3F4D-4A9B-8C21-7D5E9A0B1C34}"
 	Keyword="Xbox">
 	<Platforms>
@@ -20,7 +20,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="./stubs;../src;../src/compat;&quot;$(XDK)\xbox\include&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;TARGET_WINDOWS;_XBOX;MATRIXTRAILS_NO_DX8_LIB_PRAGMA"
+				PreprocessorDefinitions="WIN32;_DEBUG;TARGET_WINDOWS;_XBOX;FLUBBERIDOO_NO_DX8_LIB_PRAGMA"
 				MinimalRebuild="FALSE"
 				BasicRuntimeChecks="0"
 				RuntimeLibrary="1"
@@ -33,7 +33,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="dsoundd.lib xapilibd.lib d3d8d.lib d3dx8d.lib xgraphicsd.lib dmusicd.lib xactengd.lib xsndtrkd.lib xvoiced.lib xonlined.lib xboxkrnl.lib xbdm.lib xmvd.lib"
-				OutputFile="$(OutDir)/MatrixTrailsRunner.exe"
+				OutputFile="$(OutDir)/FlubberidooRunner.exe"
 				LinkIncremental="1"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile="$(OutDir)/$(ProjectName).pdb"
@@ -44,12 +44,12 @@
 			<Tool
 				Name="VCPreBuildEventTool"
 				Description="Staging screensaver assets into $(OutDir)..."
-				CommandLine="if not exist &quot;$(OutDir)\resources&quot; mkdir &quot;$(OutDir)\resources&quot;&#x0D;&#x0A;copy /Y &quot;$(ProjectDir)..\screensaver.matrixtrails\resources\MatrixTrails.tga&quot; &quot;$(OutDir)\resources\MatrixTrails.tga&quot;"/>
+				CommandLine="if not exist &quot;$(OutDir)\resources&quot; mkdir &quot;$(OutDir)\resources&quot;&#x0D;&#x0A;copy /Y &quot;$(ProjectDir)..\screensaver.flubberidoo\resources\bootanim.ini&quot; &quot;$(OutDir)\resources\bootanim.ini&quot;"/>
 			<Tool
 				Name="VCPreLinkEventTool"/>
 			<Tool
 				Name="XboxDeploymentTool"
-				AdditionalFiles="resources\MatrixTrails.tga=$(OutDir)\resources\MatrixTrails.tga"/>
+				AdditionalFiles="resources\bootanim.ini=$(OutDir)\resources\bootanim.ini"/>
 			<Tool
 				Name="XboxImageTool"/>
 		</Configuration>
@@ -64,7 +64,7 @@
 				Optimization="2"
 				FavorSizeOrSpeed="1"
 				AdditionalIncludeDirectories="./stubs;../src;../src/compat;&quot;$(XDK)\xbox\include&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;TARGET_WINDOWS;_XBOX;MATRIXTRAILS_NO_DX8_LIB_PRAGMA"
+				PreprocessorDefinitions="WIN32;NDEBUG;TARGET_WINDOWS;_XBOX;FLUBBERIDOO_NO_DX8_LIB_PRAGMA"
 				RuntimeLibrary="0"
 				BufferSecurityCheck="FALSE"
 				UsePrecompiledHeader="0"
@@ -75,7 +75,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="dsound.lib xapilib.lib d3d8.lib d3dx8.lib xgraphics.lib dmusic.lib xacteng.lib xsndtrk.lib xvoice.lib xonline.lib xboxkrnl.lib xmv.lib"
-				OutputFile="$(OutDir)/MatrixTrailsRunner.exe"
+				OutputFile="$(OutDir)/FlubberidooRunner.exe"
 				LinkIncremental="1"
 				GenerateDebugInformation="FALSE"
 				SubSystem="0"
@@ -87,12 +87,12 @@
 			<Tool
 				Name="VCPreBuildEventTool"
 				Description="Staging screensaver assets into $(OutDir)..."
-				CommandLine="if not exist &quot;$(OutDir)\resources&quot; mkdir &quot;$(OutDir)\resources&quot;&#x0D;&#x0A;copy /Y &quot;$(ProjectDir)..\screensaver.matrixtrails\resources\MatrixTrails.tga&quot; &quot;$(OutDir)\resources\MatrixTrails.tga&quot;"/>
+				CommandLine="if not exist &quot;$(OutDir)\resources&quot; mkdir &quot;$(OutDir)\resources&quot;&#x0D;&#x0A;copy /Y &quot;$(ProjectDir)..\screensaver.flubberidoo\resources\bootanim.ini&quot; &quot;$(OutDir)\resources\bootanim.ini&quot;"/>
 			<Tool
 				Name="VCPreLinkEventTool"/>
 			<Tool
 				Name="XboxDeploymentTool"
-				AdditionalFiles="resources\MatrixTrails.tga=$(OutDir)\resources\MatrixTrails.tga"/>
+				AdditionalFiles="resources\bootanim.ini=$(OutDir)\resources\bootanim.ini"/>
 			<Tool
 				Name="XboxImageTool"/>
 		</Configuration>
@@ -116,10 +116,13 @@
 				RelativePath="..\src\main.cpp">
 			</File>
 			<File
-				RelativePath="..\src\matrixtrails.cpp">
+				RelativePath="..\src\flubber.cpp">
 			</File>
 			<File
-				RelativePath="..\src\column.cpp">
+				RelativePath="..\src\theme.cpp">
+			</File>
+			<File
+				RelativePath="..\src\geometry_data.cpp">
 			</File>
 		</Filter>
 		<Filter
@@ -130,10 +133,16 @@
 				RelativePath="..\src\main.h">
 			</File>
 			<File
-				RelativePath="..\src\matrixtrails.h">
+				RelativePath="..\src\flubber.h">
 			</File>
 			<File
-				RelativePath="..\src\column.h">
+				RelativePath="..\src\flubmath.h">
+			</File>
+			<File
+				RelativePath="..\src\theme.h">
+			</File>
+			<File
+				RelativePath="..\src\geometry_data.h">
 			</File>
 			<File
 				RelativePath="..\src\timer.h">

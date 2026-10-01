@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="7.10"
-	Name="MatrixTrails"
+	Name="Flubberidoo"
 	ProjectGUID="{DD54E288-DEC9-41D3-A1CB-A05645CD0787}"
 	Keyword="Win32Proj">
 	<Platforms>
@@ -34,19 +34,19 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="$(OutDir)/MatrixTrails.xbs"
+				OutputFile="$(OutDir)/Flubberidoo.xbs"
 				LinkIncremental="1"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile="$(OutDir)/$(ProjectName).pdb"
 				SubSystem="2"
-				ImportLibrary="$(OutDir)/MatrixTrails.lib"
+				ImportLibrary="$(OutDir)/Flubberidoo.lib"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="Assembling addon: copying MatrixTrails.xbs into the addon folder..."
-				CommandLine="copy /Y &quot;$(OutDir)\MatrixTrails.xbs&quot; &quot;$(ProjectDir)..\screensaver.matrixtrails\MatrixTrails.xbs&quot;"/>
+				Description="Assembling addon: copying Flubberidoo.xbs into the addon folder..."
+				CommandLine="copy /Y &quot;$(OutDir)\Flubberidoo.xbs&quot; &quot;$(ProjectDir)..\screensaver.flubberidoo\Flubberidoo.xbs&quot;"/>
 			<Tool
 				Name="VCPreBuildEventTool"/>
 			<Tool
@@ -88,20 +88,20 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="$(OutDir)/MatrixTrails.xbs"
+				OutputFile="$(OutDir)/Flubberidoo.xbs"
 				LinkIncremental="1"
 				GenerateDebugInformation="FALSE"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				ImportLibrary="$(OutDir)/MatrixTrails.lib"
+				ImportLibrary="$(OutDir)/Flubberidoo.lib"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="Assembling addon: copying MatrixTrails.xbs into the addon folder..."
-				CommandLine="copy /Y &quot;$(OutDir)\MatrixTrails.xbs&quot; &quot;$(ProjectDir)..\screensaver.matrixtrails\MatrixTrails.xbs&quot;"/>
+				Description="Assembling addon: copying Flubberidoo.xbs into the addon folder..."
+				CommandLine="copy /Y &quot;$(OutDir)\Flubberidoo.xbs&quot; &quot;$(ProjectDir)..\screensaver.flubberidoo\Flubberidoo.xbs&quot;"/>
 			<Tool
 				Name="VCPreBuildEventTool"/>
 			<Tool
@@ -128,13 +128,16 @@
 			Filter="cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}">
 			<File
-				RelativePath=".\column.cpp">
-			</File>
-			<File
 				RelativePath=".\main.cpp">
 			</File>
 			<File
-				RelativePath=".\matrixtrails.cpp">
+				RelativePath=".\flubber.cpp">
+			</File>
+			<File
+				RelativePath=".\theme.cpp">
+			</File>
+			<File
+				RelativePath=".\geometry_data.cpp">
 			</File>
 		</Filter>
 		<Filter
@@ -142,13 +145,19 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}">
 			<File
-				RelativePath=".\column.h">
-			</File>
-			<File
 				RelativePath=".\main.h">
 			</File>
 			<File
-				RelativePath=".\matrixtrails.h">
+				RelativePath=".\flubber.h">
+			</File>
+			<File
+				RelativePath=".\flubmath.h">
+			</File>
+			<File
+				RelativePath=".\theme.h">
+			</File>
+			<File
+				RelativePath=".\geometry_data.h">
 			</File>
 			<File
 				RelativePath=".\timer.h">

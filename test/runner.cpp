@@ -1,14 +1,14 @@
 /*
- *  Standalone MatrixTrails test runner (recompile host).
+ *  Standalone Flubberidoo test runner (recompile host).
  *
  *  Compiles the unmodified screensaver adapter + engine (src/main.cpp,
- *  matrixtrails.cpp, column.cpp) straight into this .xbe, against the lightweight
- *  Kodi stubs in test/stubs, and drives Start()/Render()/Stop() directly. Because
- *  the screensaver code is compiled into the runner, it is fully source-level
- *  debuggable in Visual Studio (breakpoints, stepping, watches).
+ *  flubber.cpp, theme.cpp, geometry_data.cpp) straight into this .xbe, against
+ *  the lightweight Kodi stubs in test/stubs, and drives Start()/Render()/Stop()
+ *  directly. Because the screensaver code is compiled into the runner, it is
+ *  fully source-level debuggable in Visual Studio (breakpoints, stepping).
  *
- *  Deployment: resources\MatrixTrails.tga next to the .xbe (loaded as
- *  D:\resources\MatrixTrails.tga).
+ *  Deployment: resources\bootanim.ini next to the .xbe (loaded as
+ *  D:\resources\bootanim.ini).
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -27,7 +27,7 @@ static LPDIRECT3DDEVICE8 g_pDevice = 0;
  * D3D8 state wrappers. main.h declares these extern "C" helpers; in the real
  * .xbs they resolve to xbox_dx8.dll (routing to XBMC's host device). A standalone
  * .xbe owns its device, so we implement them directly against it. The project
- * defines MATRIXTRAILS_NO_DX8_LIB_PRAGMA so main.h's #pragma is skipped and we
+ * defines FLUBBERIDOO_NO_DX8_LIB_PRAGMA so main.h's #pragma is skipped and we
  * don't link xbox_dx8.lib.
  * ------------------------------------------------------------------------- */
 extern "C" void d3dSetRenderState(DWORD state, DWORD value)
@@ -76,10 +76,9 @@ void __cdecl main()
   // Render loop. No exit path by design; stop the emulator or reset to quit.
   for (;;)
   {
-    g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
     g_pDevice->BeginScene();
     if (screensaver)
-      screensaver->Render();
+      screensaver->Render();   // engine clears + draws the frame
     g_pDevice->EndScene();
     g_pDevice->Present(NULL, NULL, NULL, NULL);
   }
