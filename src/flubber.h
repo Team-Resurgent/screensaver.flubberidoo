@@ -29,6 +29,8 @@
 
 // Fixed-function vertex for the blob body: world-space position + packed diffuse.
 struct BlobVtx { f32 x, y, z; DWORD color; };
+// Halo billboard vertex: world-space position + glow-texture UV.
+struct HaloVtx { f32 x, y, z, u, v; };
 
 // One of the twelve intensity pulses (anim.js makePulses).
 struct FlubPulse { f32 x, y, z; };
@@ -79,4 +81,10 @@ private:
   LPDIRECT3DVERTEXBUFFER8 m_blobVB;   // strip-ordered body vertices (dynamic)
   int                     m_blobStripVerts;  // == strip index count
   std::vector<BlobVtx>    m_blobUnique;       // per-unique-vertex scratch
+
+  LPDIRECT3DTEXTURE8      m_glowTex;   // procedural radial glow (halo)
+  LPDIRECT3DVERTEXBUFFER8 m_haloVB;    // 4-vertex camera-facing billboard
+  LPDIRECT3DVERTEXBUFFER8 m_blobletVB; // one drop's strip at a time (dynamic)
+  int                     m_blobletStripVerts;
+  std::vector<BlobVtx>    m_blobletUnique;
 };

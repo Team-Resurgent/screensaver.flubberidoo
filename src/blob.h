@@ -104,6 +104,12 @@ public:
   const u16*   StripIndices()   const { return &m_idx[0]; }
   int          StripIndexCount()const { return (int)m_idx.size(); }
 
+  // Bloblet (drop) geometry: a smaller unit sphere, shared by all live drops.
+  int          BlobletVertCount()  const { return (int)(m_bPos.size() / 3); }
+  const f32*   BlobletPos()        const { return &m_bPos[0]; }   // vc*3 unit sphere
+  const u16*   BlobletIndices()    const { return &m_bIdx[0]; }
+  int          BlobletIndexCount() const { return (int)m_bIdx.size(); }
+
   // --- state for later passes (bloblets / lighting) ------------------------
   int     numBloblets;
   int     numBumps;
@@ -122,6 +128,8 @@ private:
   std::vector<f32> m_pos;        // unit sphere positions, count*3
   std::vector<u16> m_idx;        // one triangle strip (with degenerate stitches)
   std::vector<f32> m_changing;   // count*4
+  std::vector<f32> m_bPos;       // bloblet unit sphere positions
+  std::vector<u16> m_bIdx;       // bloblet triangle strip
   int   m_count;
   int   m_perFace;
   int   m_subdiv;

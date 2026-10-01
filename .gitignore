@@ -13,3 +13,8 @@ out/
 *.vcxproj.user
 # Windows
 Thumbs.db
+
+# host-check build artifacts
+*.obj
+__hc*/
+__hostchk*/

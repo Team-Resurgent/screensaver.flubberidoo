@@ -216,13 +216,13 @@ static void TriStrip(std::vector<int>& out, int xQuads, int yQuads,
   if (doubleLast) out.push_back(start + yQuads * vstride + xQuads * hstride);
 }
 
-void CBlobSim::BuildUnitSphere(int resolution)
+// blob::generateUnitSphere — fills pos (count*3) + one triangle strip (idx).
+static void BuildSphereGeom(int resolution, std::vector<f32>& pos, std::vector<u16>& idx)
 {
-  m_subdiv = resolution / 2; if (m_subdiv < 1) m_subdiv = 1;
-  int subdiv = m_subdiv;
+  int subdiv = resolution / 2; if (subdiv < 1) subdiv = 1;
   f32 step = 2.0f / subdiv;
 
-  m_pos.clear();
+  pos.clear();
   for (int k = 0; k < 6; k++)
     for (int j = 0; j <= subdiv; j++)
       for (int i = 0; i <= subdiv; i++)
@@ -237,18 +237,24 @@ void CBlobSim::BuildUnitSphere(int resolution)
         else if (k == 4) { p0 = fv;    p1 = 1.0f;  p2 = fu;   }
         else             { p0 = fu;    p1 = fv;    p2 = 1.0f; }
         f32 l = Hypot3(p0, p1, p2); if (l == 0.0f) l = 1.0f;
-        m_pos.push_back(p0 / l); m_pos.push_back(p1 / l); m_pos.push_back(p2 / l);
+        pos.push_back(p0 / l); pos.push_back(p1 / l); pos.push_back(p2 / l);
       }
 
-  m_perFace = (subdiv + 1) * (subdiv + 1);
-  m_count = m_perFace * 6;
-
-  std::vector<int> idx;
+  int perFace = (subdiv + 1) * (subdiv + 1);
+  std::vector<int> ib;
   for (int k = 0; k < 6; k++)
-    TriStrip(idx, subdiv, subdiv, k > 0, k < 5, k * m_perFace, 0, 0);
-  m_idx.clear();
-  m_idx.reserve(idx.size());
-  for (size_t n = 0; n < idx.size(); n++) m_idx.push_back((u16)idx[n]);
+    TriStrip(ib, subdiv, subdiv, k > 0, k < 5, k * perFace, 0, 0);
+  idx.clear();
+  idx.reserve(ib.size());
+  for (size_t n = 0; n < ib.size(); n++) idx.push_back((u16)ib[n]);
+}
+
+void CBlobSim::BuildUnitSphere(int resolution)
+{
+  m_subdiv = resolution / 2; if (m_subdiv < 1) m_subdiv = 1;
+  m_perFace = (m_subdiv + 1) * (m_subdiv + 1);
+  m_count = m_perFace * 6;
+  BuildSphereGeom(resolution, m_pos, m_idx);
 }
 
 /* ------------------------------------------------------------- CBlobSim ---- */
@@ -259,6 +265,7 @@ CBlobSim::CBlobSim()
   scale[0] = scale[1] = scale[2] = 1.0f;
   BuildUnitSphere(BLOB_DIM);
   m_changing.resize(m_count * 4);
+  BuildSphereGeom(BLOBLET_DIM, m_bPos, m_bIdx);   // drop geometry (unitSphere(8))
   Restart();
 }
 
