@@ -307,6 +307,13 @@ void CFlubber::DrawBlob()
       d3dSetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
       d3dSetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
       d3dSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+      // The glow is a LINEAR-format texture: Xbox requires CLAMP addressing (WRAP
+      // is rejected by the GPU) and no mip filter.
+      d3dSetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+      d3dSetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+      d3dSetTextureStageState(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+      d3dSetTextureStageState(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+      d3dSetTextureStageState(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
       m_dev->SetStreamSource(0, m_haloVB, sizeof(HaloVtx));
       m_dev->SetVertexShader(D3DFVF_XYZ | D3DFVF_TEX1);
       m_dev->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2);
