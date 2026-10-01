@@ -19,6 +19,7 @@
 #include "blob.h"
 #include "camera.h"
 #include "scene.h"
+#include "shields.h"
 
 #include <xtl.h>
 #include <string>
@@ -65,12 +66,15 @@ private:
   Mat4  m_view;
   Mat4  m_proj;
   Vec3  m_eye;                  // current camera position (for blob fresnel)
+  Vec3  m_look;                 // current camera look-at point (shield sort)
 
   CCamera   m_camera;
+  QuickRand m_appRand;          // app RNG: pulses first, then shields draw from it
   FlubPulse m_pulses[12];
   f32       m_eBase, m_ePulse, m_eBlob;   // intensityAt(m_time), computed per frame
 
   CScene                  m_scene;
+  CShieldManager          m_shieldMgr;
   CBlobSim*               m_blob;
   LPDIRECT3DVERTEXBUFFER8 m_blobVB;   // strip-ordered body vertices (dynamic)
   int                     m_blobStripVerts;  // == strip index count

@@ -143,6 +143,9 @@
 				RelativePath=".\scene.cpp">
 			</File>
 			<File
+				RelativePath=".\shields.cpp">
+			</File>
+			<File
 				RelativePath=".\theme.cpp">
 			</File>
 			<File
@@ -173,6 +176,9 @@
 			</File>
 			<File
 				RelativePath=".\scene.h">
+			</File>
+			<File
+				RelativePath=".\shields.h">
 			</File>
 			<File
 				RelativePath=".\theme.h">

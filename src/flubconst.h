@@ -34,4 +34,7 @@ namespace flubtime
   const f32 SHIELD_FADE_IN_DELTA     = 1.2f;
   const f32 SHIELD_FADE_OUT_START    = FINISH_START_TIME - 0.1f;                                   // 5.1
   const f32 SHIELD_FADE_OUT_DELTA    = FINISH_TRANSITION_TIME * 0.2f;                              // 0.16
+
+  const f32 PUSHOUT_START_TIME       = 0.5f;
+  const f32 PUSHOUT_DELTA            = 2.7f;
 }

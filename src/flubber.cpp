@@ -93,10 +93,11 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
 
   m_camera.Build(m_theme.cameraMode);
 
-  // Intensity pulses: app.cpp draws these first from a 0x76543210-seeded RNG.
-  // (The blob sim owns a separate, identically-seeded RNG, so they don't clash.)
-  QuickRand appRand(0x76543210);
-  MakePulses(appRand, m_pulses);
+  // app RNG: pulses are drawn first, then the shield manager continues from the
+  // SAME generator (shields.js shares state.pulseRand). The blob sim owns a
+  // separate, identically-seeded RNG, so it doesn't clash.
+  m_appRand.Init(0x76543210);
+  MakePulses(m_appRand, m_pulses);
 
   // Blob body: strip-ordered dynamic vertex buffer (we expand the shared-vertex
   // strip into DrawPrimitive order to use the 3-arg Xbox DrawPrimitive).
@@ -116,11 +117,16 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
   // Static scene meshes (per-mesh expanded triangle-list buffers). Non-fatal if
   // it fails: DrawScene guards each mesh, so the blob still renders.
   m_scene.Create(m_dev);
+
+  // Shields: geometry + initial state (drawing from m_appRand, after the pulses).
+  m_shieldMgr.Build(m_appRand);
+  m_shieldMgr.CreateBuffers(m_dev);
   return true;
 }
 
 void CFlubber::Release()
 {
+  m_shieldMgr.Release();
   m_scene.Release();
   SAFE_RELEASE(m_blobVB);
   SAFE_DELETE(m_blob);
@@ -141,6 +147,7 @@ void CFlubber::SetupFrame()
 {
   CamShot shot = m_camera.Sample(m_time);
   m_eye = shot.pos;
+  m_look = shot.look;
   m_view = BuildLookAtLH(shot.pos, shot.look, Vec3(0.0f, 0.0f, 1.0f));
 
   D3DMATRIX world = Mat4::Identity().ToD3D();
@@ -278,6 +285,11 @@ void CFlubber::DrawScene()
   m_scene.Draw(m_dev, fpos, m_blob, m_theme, m_eye, m_eBlob);
 }
 
+// --- shields: 3 shields + 5 zshields, translucent glinting panels ----------
+void CFlubber::DrawShields()
+{
+  m_shieldMgr.Draw(m_dev, m_time, m_theme, m_eye, m_look, m_eBlob);
+}
+
 // --- pass hooks (filled in by later slices) ------------------------------
-void CFlubber::DrawShields() {}
 void CFlubber::DrawPlasma()  {}
