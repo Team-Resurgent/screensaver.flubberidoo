@@ -221,27 +221,18 @@ static LPDIRECT3DCUBETEXTURE8 BuildNormalizationCube(LPDIRECT3DDEVICE8 dev, int 
   return cube;
 }
 
-// Placeholder environment reflection cube: a small all-black cube (so the shield
-// shader's env term contributes nothing for now; the real scene->cube bake lands
-// next). All-zero data is swizzle-invariant, so no XGSwizzle is needed.
-static LPDIRECT3DCUBETEXTURE8 BuildBlackCube(LPDIRECT3DDEVICE8 dev, int size)
+// Standard D3D left-handed view from the origin along 'dir' (for cube-map faces;
+// NOT the mirrored camera view — the cube uses the standard cube-map convention).
+static Mat4 StdLookAtOrigin(const Vec3& dir, const Vec3& up)
 {
-  LPDIRECT3DCUBETEXTURE8 cube = 0;
-  if (FAILED(dev->CreateCubeTexture(size, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &cube)))
-    return 0;
-  for (int f = 0; f < 6; f++)
-  {
-    LPDIRECT3DSURFACE8 face = 0;
-    if (FAILED(cube->GetCubeMapSurface((D3DCUBEMAP_FACES)f, 0, &face))) continue;
-    D3DLOCKED_RECT lr;
-    if (SUCCEEDED(face->LockRect(&lr, 0, 0)))
-    {
-      for (int y = 0; y < size; y++) memset((BYTE*)lr.pBits + y * lr.Pitch, 0, size * 4);
-      face->UnlockRect();
-    }
-    face->Release();
-  }
-  return cube;
+  Vec3 z = Normalize(dir);
+  Vec3 x = Normalize(Cross(up, z));
+  Vec3 y = Cross(z, x);
+  Mat4 r = Mat4::Identity();
+  r.m[0] = x.x; r.m[1] = y.x; r.m[2]  = z.x;
+  r.m[4] = x.y; r.m[5] = y.y; r.m[6]  = z.y;
+  r.m[8] = x.z; r.m[9] = y.z; r.m[10] = z.z;
+  return r;   // eye = origin, so translation is 0
 }
 
 // Fill a static stream-0 VB with unit-sphere positions in triangle-strip order.
@@ -306,7 +297,6 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
   m_vsBloblet = LoadVS(m_dev, kBlobletDecl, g_vbloblet_xvu);
   m_psBloblet = LoadPS(m_dev, g_vbloblet_xpu);
   m_normCube  = BuildNormalizationCube(m_dev, 64);
-  m_envCube   = BuildBlackCube(m_dev, 16);   // real scene reflection lands next slice
 
   // stream0 (static): blob unit-sphere positions in strip order.
   m_dev->CreateVertexBuffer(m_blobStripVerts * sizeof(UsVtx), 0, 0, D3DPOOL_DEFAULT, &m_blobUsVB);
@@ -333,6 +323,9 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
   BuildPlasmaTexture(m_dev, &m_plasmaTex);
   m_dev->CreateVertexBuffer(4 * sizeof(PlasmaVtx), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
                             D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &m_plasmaVB);
+
+  // Bake the shield reflection cube from the scene (once; theme is fixed at load).
+  BakeEnvCube();
   return true;
 }
 
@@ -398,6 +391,53 @@ void CFlubber::SetBaseState()
   d3dSetRenderState(D3DRS_LIGHTING, FALSE);
   d3dSetRenderState(D3DRS_COLORVERTEX, TRUE);
   d3dSetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+}
+
+// tex_gen::CreateStaticReflectionCubeMap — render the scene into a cube RT from
+// the origin, 90 deg FOV, 6 faces, scene frozen at the end of its animation.
+void CFlubber::BakeEnvCube()
+{
+  const int SIZE = 128;
+  if (FAILED(m_dev->CreateCubeTexture(SIZE, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
+                                      D3DPOOL_DEFAULT, &m_envCube)))
+  { m_envCube = null; return; }
+
+  LPDIRECT3DSURFACE8 oldRT = 0, oldZ = 0;
+  m_dev->GetRenderTarget(&oldRT);
+  m_dev->GetDepthStencilSurface(&oldZ);
+
+  Mat4 proj = BuildPerspectiveFovLH(PI * 0.5f, 1.0f, 0.1f, 400.0f);
+  D3DMATRIX projD = proj.ToD3D();
+
+  if (m_blob) m_blob->Seek(2.0f);   // representative lighting for the one-off bake
+  f32 energyBlob = STEADY_BASE + 0.3f;
+
+  static const f32 faceDir[6][3] = { {1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1} };
+  static const f32 faceUp[6][3]  = { {0,1,0},{0,1,0},{0,0,-1},{0,0,1},{0,1,0},{0,1,0} };
+
+  for (int f = 0; f < 6; f++)
+  {
+    LPDIRECT3DSURFACE8 faceRT = 0;
+    if (FAILED(m_envCube->GetCubeMapSurface((D3DCUBEMAP_FACES)f, 0, &faceRT)))
+      continue;
+    m_dev->SetRenderTarget(faceRT, oldZ);        // reuse the main depth (>= 128)
+    if (SUCCEEDED(m_dev->BeginScene()))
+    {
+      m_dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
+      Mat4 view = StdLookAtOrigin(Vec3(faceDir[f][0], faceDir[f][1], faceDir[f][2]),
+                                  Vec3(faceUp[f][0], faceUp[f][1], faceUp[f][2]));
+      D3DMATRIX viewD = view.ToD3D();
+      m_dev->SetTransform(D3DTS_VIEW, &viewD);
+      m_dev->SetTransform(D3DTS_PROJECTION, &projD);
+      m_scene.Draw(m_dev, 1.0f, m_blob, m_theme, Vec3(0, 0, 0), energyBlob);  // fpos=1
+      m_dev->EndScene();
+    }
+    faceRT->Release();
+  }
+
+  m_dev->SetRenderTarget(oldRT, oldZ);
+  if (oldRT) oldRT->Release();
+  if (oldZ) oldZ->Release();
 }
 
 bool CFlubber::Draw()

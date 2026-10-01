@@ -78,3 +78,6 @@ D3DSurface_LockRect@16
 @D3DDevice_SetVertexShaderConstant1@8
 @D3DDevice_SetVertexShaderConstant4@8
 @D3DDevice_SetVertexShaderConstantNotInline@12
+D3DDevice_SetRenderTarget@8
+D3DDevice_GetRenderTarget2@0
+D3DDevice_GetDepthStencilSurface2@0

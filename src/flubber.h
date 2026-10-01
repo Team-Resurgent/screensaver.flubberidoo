@@ -55,6 +55,7 @@ public:
 private:
   void SetupFrame();            // camera -> view/proj, clear, baseline state
   void SetBaseState();
+  void BakeEnvCube();           // render the scene into m_envCube (6 faces)
 
   // Render passes. Filled in across slices; each gated by the theme.
   void DrawScene();
