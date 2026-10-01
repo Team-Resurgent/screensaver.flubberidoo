@@ -67,3 +67,14 @@ D3DDevice_SetLight@8
 D3DDevice_LightEnable@8
 D3DXVec3Normalize@8
 D3DXMatrixRotationY@8
+D3DDevice_CreatePixelShader@8
+D3DDevice_CreateVertexShader@16
+D3DDevice_SetPixelShader@4
+D3DDevice_SetPixelShaderConstant@12
+D3DDevice_DeletePixelShader@4
+D3DDevice_DeleteVertexShader@4
+D3DCubeTexture_GetCubeMapSurface2@12
+D3DSurface_LockRect@16
+@D3DDevice_SetVertexShaderConstant1@8
+@D3DDevice_SetVertexShaderConstant4@8
+@D3DDevice_SetVertexShaderConstantNotInline@12
