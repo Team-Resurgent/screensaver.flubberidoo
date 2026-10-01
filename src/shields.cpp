@@ -392,7 +392,12 @@ void CShieldManager::Draw(LPDIRECT3DDEVICE8 dev, f32 t, const CTheme& theme,
   d3dSetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
   d3dSetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
   d3dSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-  d3dSetRenderState(D3DRS_CULLMODE, wire ? D3DCULL_NONE : D3DCULL_CCW);
+  // The reference culls back faces (GL frontFace CW + cullBack). Our view matrix
+  // matches camera.js (x = cross(forward,up), a reflection) and D3D's viewport is
+  // Y-flipped vs WebGL; both invert screen winding, so the D3D equivalent is CW,
+  // not CCW. With CCW we were showing the bright inner face instead of the dark
+  // outer one.
+  d3dSetRenderState(D3DRS_CULLMODE, wire ? D3DCULL_NONE : D3DCULL_CW);
   d3dSetRenderState(D3DRS_FILLMODE, wire ? D3DFILL_WIREFRAME : D3DFILL_SOLID);
 
   dev->SetTexture(0, NULL);
