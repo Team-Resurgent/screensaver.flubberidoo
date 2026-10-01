@@ -265,6 +265,12 @@ void CFlubber::DrawBlob()
   d3dSetRenderState(D3DRS_LIGHTING, FALSE);
   d3dSetRenderState(D3DRS_SPECULARENABLE, FALSE);
 
+  // The blob/halo/bloblets bake world-space positions, so they need an identity
+  // world transform. DrawScene left WORLD set to the last instance's matrix, so
+  // reset it here (otherwise the blob is flung into the scene and vanishes).
+  D3DMATRIX ident = Mat4::Identity().ToD3D();
+  m_dev->SetTransform(D3DTS_WORLD, &ident);
+
   f32 pulse = m_ePulse < 0.0f ? 0.0f : m_ePulse;
   f32 curRad = BLOB_RADIUS * (1.0f + 1.3f * (f32)sqrt(pulse));
 
