@@ -518,7 +518,11 @@ void CFlubber::DrawBlob()
   vc5[8]=curRad; vc5[9]=curRad; vc5[10]=curRad; vc5[11]=1.0f;
   vc5[12]=1.0f/curRad; vc5[13]=1.0f/curRad; vc5[14]=1.0f/curRad; vc5[15]=1.0f;
   vc5[16]=0; vc5[17]=0; vc5[18]=0; vc5[19]=0;
-  m_dev->SetVertexShaderConstant(8, vc5, 5);
+  // Split into 4+1 registers so we only use the exported SetVertexShaderConstant4
+  // / SetVertexShaderConstant1 (the 5-count path would hit NotInline, which the
+  // XBMC wrapper doesn't export).
+  m_dev->SetVertexShaderConstant(8, vc5, 4);        // c8-c11
+  m_dev->SetVertexShaderConstant(12, &vc5[16], 1);  // c12
 
   // colour intensity: steady (no start fade-in; m_eBase is held at a mature level).
   f32 colorIntensity = BLOB_BASE_INTENSITY + 4.0f * (1.2f * m_eBase + 0.8f * m_ePulse);
@@ -557,7 +561,8 @@ void CFlubber::DrawBlob()
     f32 vc2[8];
     vc2[0]=0; vc2[1]=1; vc2[2]=2; vc2[3]=0.5f;                 // c8
     vc2[4]=m_eye.x; vc2[5]=m_eye.y; vc2[6]=m_eye.z; vc2[7]=1.0f; // c9
-    m_dev->SetVertexShaderConstant(8, vc2, 2);
+    m_dev->SetVertexShaderConstant(8, vc2, 1);        // c8
+    m_dev->SetVertexShaderConstant(9, &vc2[4], 1);    // c9
 
     f32 eb = m_eBlob;
     f32 bp[12];
