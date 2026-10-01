@@ -1,0 +1,13 @@
+BUILD/
+Release/
+Debug/
+src/include/
+*.xbs
+*.ncb
+*.suo
+screensaver.*.zip
+
+# VS2022 / RXDK build artifacts
+out/
+.vs/
+*.vcxproj.user

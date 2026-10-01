@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon
+  id="screensaver.matrixtrails"
+  version="21.0.2"
+  name="Matrix trails"
+  provider-name="spiff">
+  <requires>
+    <import addon="kodi.binary.global.main" minversion="2.0.0" version="2.0.2"/>
+    <import addon="kodi.binary.global.filesystem" minversion="1.1.7" version="1.1.9"/>
+    <import addon="kodi.binary.instance.screensaver" minversion="2.2.0" version="2.2.0"/>
+  </requires>
+  <extension
+    point="xbmc.ui.screensaver"
+    library_xbox="MatrixTrails.xbs"/>
+  <extension point="xbmc.addon.metadata">
+    <platform>xbox</platform>
+    <license>GPL-2.0-or-later</license>
+    <source>https://github.com/xbmc4xbox/screensaver.matrixtrails</source>
+    <assets>
+      <icon>resources/icon.png</icon>
+      <fanart>resources/fanart.jpg</fanart>
+      <screenshot>resources/screenshot-01.jpg</screenshot>
+      <screenshot>resources/screenshot-02.jpg</screenshot>
+      <screenshot>resources/screenshot-01.jpg</screenshot>
+    </assets>
+    <summary lang="en_GB">Matrix trails screensaver</summary>
+    <description lang="en_GB">The &quot;digital rain&quot; effect, as seen on the computer monitors in &quot;The Matrix&quot;.[CR][CR]In its settings you can also define your own colors and sizes of rain.</description>
+  </extension>
+</addon>

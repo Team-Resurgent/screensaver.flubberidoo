@@ -1,0 +1,21 @@
+/*
+ *  Minimal ISO C++11 <cinttypes> for Microsoft Visual C++ 7.1 (Visual Studio .NET 2003).
+ *
+ *  VC7.1 predates C++11 and ships no <cinttypes>. The Kodi addon dev-kit includes it
+ *  (tools/StringUtils.h). <cinttypes> is <inttypes.h> brought into namespace std plus
+ *  the PRI and SCN format macros, so this just pulls in our compat <inttypes.h>.
+ *
+ *  Placed on the compiler include path via the project's AdditionalIncludeDirectories.
+ *  SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef _MSC_CINTTYPES_
+#define _MSC_CINTTYPES_
+
+#if _MSC_VER > 1000
+#pragma once
+#endif
+
+#include <inttypes.h>
+
+#endif /* _MSC_CINTTYPES_ */

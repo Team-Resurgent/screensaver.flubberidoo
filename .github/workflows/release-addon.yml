@@ -1,0 +1,39 @@
+name: Release addon
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on:
+      - self-hosted
+
+    steps:
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Extract addon id and version
+        id: addon_metadata
+        shell: pwsh
+        run: |
+          [xml]$xml = Get-Content "screensaver.matrixtrails\addon.xml"
+          $addon_id = $xml.addon.id
+          "addon_id=$addon_id" >> $env:GITHUB_OUTPUT
+          $version = $xml.addon.version
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build addon
+        shell: cmd
+        run: |
+          build.bat
+
+      - name: Release addon
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.addon_metadata.outputs.version }}
+          name: Release ${{ steps.addon_metadata.outputs.version }}
+          files: ${{ steps.addon_metadata.outputs.addon_id }}-${{ steps.addon_metadata.outputs.version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.XBMC_TOKEN }}

@@ -1,0 +1,4 @@
+[submodule "external/kodi4xbox"]
+	path = external/kodi4xbox
+	url = https://github.com/antonic901/xbmc4xbox-redux.git
+	branch = Omega
