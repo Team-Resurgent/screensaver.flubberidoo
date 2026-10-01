@@ -86,6 +86,7 @@ private:
   // Real-shader blob pipeline (vblob / vbloblet) + normalization cubemap.
   DWORD                   m_vsBlob, m_psBlob, m_vsBloblet, m_psBloblet;
   LPDIRECT3DCUBETEXTURE8  m_normCube;     // normalization cubemap (t0/t1)
+  LPDIRECT3DCUBETEXTURE8  m_envCube;      // shield reflection cube (black placeholder for now)
   LPDIRECT3DVERTEXBUFFER8 m_blobUsVB;     // stream0 static: unit-sphere pos (strip)
   LPDIRECT3DVERTEXBUFFER8 m_blobChVB;     // stream1 dynamic: changing nx,ny,nz,disp
   LPDIRECT3DVERTEXBUFFER8 m_blobletUsVB;  // bloblet stream0 static: unit-sphere pos

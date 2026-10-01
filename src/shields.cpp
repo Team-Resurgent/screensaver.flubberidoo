@@ -8,6 +8,7 @@
 #include "shields.h"
 #include "blob.h"      // QuickRand
 #include "flubconst.h"
+#include "flubshaders_bin.h"   // g_shield_xvu / g_shield_xpu
 
 #include <math.h>
 #include <string.h>
@@ -17,8 +18,14 @@ using namespace flubtime;
 static const f32 kPI = 3.14159265358979323846f;
 static const f32 MOOD_LIGHT[3] = { 0.0f, -40.0f, 30.0f };
 
-struct ShieldVtx { f32 x, y, z; DWORD color; };
-#define SHIELD_FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE)
+// shield.vsh vertex: object-space position + normal (one stream).
+struct ShieldShVtx { f32 x, y, z, nx, ny, nz; };
+static const DWORD kShieldDecl[] = {
+  D3DVSD_STREAM(0),
+  D3DVSD_REG(0, D3DVSDT_FLOAT3),   // v0 position
+  D3DVSD_REG(1, D3DVSDT_FLOAT3),   // v1 normal
+  D3DVSD_END()
+};
 
 static inline f32 Hyp3(f32 x, f32 y, f32 z) { return (f32)sqrt(x*x + y*y + z*z); }
 
@@ -192,17 +199,51 @@ static f32 ShieldIntensity(f32 t, f32 blob)
   return v < 1.0f ? v : 1.0f;
 }
 
+/* --------------------------------------------- shader + VB helpers -------- */
+static DWORD ShLoadPS(LPDIRECT3DDEVICE8 dev, const BYTE* blob)
+{
+  const D3DPIXELSHADERDEF_FILE* f = (const D3DPIXELSHADERDEF_FILE*)blob;
+  DWORD h = 0; dev->CreatePixelShader((D3DPIXELSHADERDEF*)&f->Psd, &h); return h;
+}
+static DWORD ShLoadVS(LPDIRECT3DDEVICE8 dev, const DWORD* decl, const BYTE* blob)
+{
+  DWORD h = 0; dev->CreateVertexShader(decl, (const DWORD*)blob, &h, 0); return h;
+}
+
+// Expand a panel's indexed strip into a static (pos+normal) strip VB.
+static LPDIRECT3DVERTEXBUFFER8 BuildShieldVB(LPDIRECT3DDEVICE8 dev, const ShieldMesh& m, int* outStrip)
+{
+  int n = (int)m.idx.size();
+  *outStrip = n;
+  if (n < 3) return 0;
+  LPDIRECT3DVERTEXBUFFER8 vb = 0;
+  if (FAILED(dev->CreateVertexBuffer(n * sizeof(ShieldShVtx), 0, 0, D3DPOOL_DEFAULT, &vb))) return 0;
+  ShieldShVtx* v = 0;
+  if (FAILED(vb->Lock(0, 0, (BYTE**)&v, 0))) { vb->Release(); return 0; }
+  const f32* P = &m.pos[0]; const f32* N = &m.nrm[0]; const u16* id = &m.idx[0];
+  for (int k = 0; k < n; k++)
+  { int p = id[k]; v[k].x=P[p*3]; v[k].y=P[p*3+1]; v[k].z=P[p*3+2]; v[k].nx=N[p*3]; v[k].ny=N[p*3+1]; v[k].nz=N[p*3+2]; }
+  vb->Unlock();
+  return vb;
+}
+
 /* ----------------------------------------------------- CShieldManager ----- */
 CShieldManager::CShieldManager()
-  : m_rand(0), m_midRadius(0), m_radiusScale(0), m_time(0), m_vb(0), m_vbVerts(0)
+  : m_rand(0), m_midRadius(0), m_radiusScale(0), m_time(0),
+    m_vs(0), m_ps(0), m_panelVB(0), m_panelStrip(0)
 {
   m_center[0]=0; m_center[1]=0; m_center[2]=1;
+  for (int i = 0; i < MAX_ZSHIELDS; i++) { m_zVB[i] = 0; m_zStrip[i] = 0; }
 }
 CShieldManager::~CShieldManager() { Release(); }
 
 void CShieldManager::Release()
 {
-  SAFE_RELEASE(m_vb);
+  SAFE_RELEASE(m_panelVB);
+  for (int i = 0; i < MAX_ZSHIELDS; i++) SAFE_RELEASE(m_zVB[i]);
+  // Shader handles are owned by the device; the engine's Release path and device
+  // teardown free them. We null them here.
+  m_vs = m_ps = 0;
 }
 
 void CShieldManager::Build(QuickRand& rand)
@@ -230,16 +271,12 @@ void CShieldManager::Build(QuickRand& rand)
 
 bool CShieldManager::CreateBuffers(LPDIRECT3DDEVICE8 dev)
 {
-  // size to the largest strip among panel + zmeshes
-  int maxv = (int)m_panel.idx.size();
+  m_vs = ShLoadVS(dev, kShieldDecl, g_shield_xvu);
+  m_ps = ShLoadPS(dev, g_shield_xpu);
+  m_panelVB = BuildShieldVB(dev, m_panel, &m_panelStrip);
   for (int i = 0; i < MAX_ZSHIELDS; i++)
-    if ((int)m_zmesh[i].idx.size() > maxv) maxv = (int)m_zmesh[i].idx.size();
-  m_vbVerts = maxv;
-  if (FAILED(dev->CreateVertexBuffer(maxv * sizeof(ShieldVtx),
-                                     D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, SHIELD_FVF,
-                                     D3DPOOL_DEFAULT, &m_vb)))
-  { m_vb = 0; return false; }
-  return true;
+    m_zVB[i] = BuildShieldVB(dev, m_zmesh[i], &m_zStrip[i]);
+  return m_panelVB != 0;
 }
 
 void CShieldManager::NewShield(Shield& s)
@@ -324,95 +361,73 @@ void CShieldManager::Seek(f32 target)
   }
 }
 
-void CShieldManager::DrawPanel(LPDIRECT3DDEVICE8 dev, const ShieldMesh& mesh, const Mat4& world,
-                               const CRGBA& tint, f32 intensity, f32 alpha)
+void CShieldManager::DrawPanel(LPDIRECT3DDEVICE8 dev, LPDIRECT3DVERTEXBUFFER8 vb,
+                               int stripVerts, const Mat4& world)
 {
-  int n = (int)mesh.idx.size();
-  if (!m_vb || n < 3 || n > m_vbVerts) return;
-  const f32* P = &mesh.pos[0];
-  const f32* N = &mesh.nrm[0];
-  const u16* id = &mesh.idx[0];
+  if (!vb || stripVerts < 3) return;
+  // c0-c3 = transpose(object-to-world).
   const f32* m = world.m;
-
-  ShieldVtx* vb = 0;
-  if (FAILED(m_vb->Lock(0, 0, (BYTE**)&vb, 0))) return;
-  for (int k = 0; k < n; k++)
-  {
-    int v = id[k];
-    f32 px = P[v*3], py = P[v*3+1], pz = P[v*3+2];
-    f32 nx = N[v*3], ny = N[v*3+1], nz = N[v*3+2];
-
-    f32 wx = px*m[0] + py*m[4] + pz*m[8]  + m[12];
-    f32 wy = px*m[1] + py*m[5] + pz*m[9]  + m[13];
-    f32 wz = px*m[2] + py*m[6] + pz*m[10] + m[14];
-    f32 wnx = nx*m[0] + ny*m[4] + nz*m[8];
-    f32 wny = nx*m[1] + ny*m[5] + nz*m[9];
-    f32 wnz = nx*m[2] + ny*m[6] + nz*m[10];
-    f32 nl = Hyp3(wnx, wny, wnz); if (nl < 1e-6f) nl = 1.0f;
-    wnx /= nl; wny /= nl; wnz /= nl;
-
-    // b = (N.L_blob)^16 (blob light at origin), m = (N.L_mood)^16.
-    f32 lbx = -wx, lby = -wy, lbz = -wz;                 // dir to blob (0,0,0)
-    f32 ll = Hyp3(lbx, lby, lbz); if (ll < 1e-6f) ll = 1.0f;
-    f32 b = (wnx*lbx + wny*lby + wnz*lbz) / ll;
-    if (b < 0) b = 0; else if (b > 1) b = 1;
-    b *= b; b *= b; b *= b; b *= b;                      // ^16
-
-    f32 lmx = MOOD_LIGHT[0]-wx, lmy = MOOD_LIGHT[1]-wy, lmz = MOOD_LIGHT[2]-wz;
-    f32 lm = Hyp3(lmx, lmy, lmz); if (lm < 1e-6f) lm = 1.0f;
-    f32 mm = (wnx*lmx + wny*lmy + wnz*lmz) / lm;
-    if (mm < 0) mm = 0; else if (mm > 1) mm = 1;
-    mm *= mm; mm *= mm; mm *= mm; mm *= mm;              // ^16
-
-    // hi = b*(0.2,0.5,0.2)+b = b*(1.2,1.5,1.2); lit = sat(sat(hi)+m)
-    f32 hr = Clampf(b*1.2f,0,1), hg = Clampf(b*1.5f,0,1), hb = Clampf(b*1.2f,0,1);
-    f32 lr = Clampf(hr+mm,0,1), lg = Clampf(hg+mm,0,1), lbc = Clampf(hb+mm,0,1);
-
-    CRGBA c(lr*tint.r*intensity, lg*tint.g*intensity, lbc*tint.b*intensity, alpha);
-    vb[k].x = wx; vb[k].y = wy; vb[k].z = wz; vb[k].color = c.RenderColor();
-  }
-  m_vb->Unlock();
-
-  dev->SetStreamSource(0, m_vb, sizeof(ShieldVtx));
-  dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, n - 2);
+  f32 wT[16];
+  for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) wT[i*4+j] = m[j*4+i];
+  dev->SetVertexShaderConstant(0, wT, 4);
+  dev->SetStreamSource(0, vb, sizeof(ShieldShVtx));
+  dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, stripVerts - 2);
 }
 
-void CShieldManager::Draw(LPDIRECT3DDEVICE8 dev, f32 t, const CTheme& theme,
-                          const Vec3& eye, const Vec3& look, f32 energyBlob)
+void CShieldManager::Draw(LPDIRECT3DDEVICE8 dev, LPDIRECT3DCUBETEXTURE8 envCube,
+                          LPDIRECT3DCUBETEXTURE8 normCube, const f32* vpT, f32 t,
+                          const CTheme& theme, const Vec3& eye, const Vec3& look, f32 energyBlob)
 {
   Seek(t);
   f32 alpha = ShieldShading(t);
   if (alpha <= 0.002f) return;
+  if (!m_vs || !m_ps || !m_panelVB) return;
   f32 intensity = ShieldIntensity(t, energyBlob);
   bool wire = theme.shieldWireframe;
 
-  // translucent, no depth write, back-face cull (D3DCULL_CCW keeps the outer face)
   d3dSetRenderState(D3DRS_LIGHTING, FALSE);
   d3dSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
   d3dSetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
   d3dSetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
   d3dSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-  // The reference culls back faces (GL frontFace CW + cullBack). Our view matrix
-  // matches camera.js (x = cross(forward,up), a reflection) and D3D's viewport is
-  // Y-flipped vs WebGL; both invert screen winding, so the D3D equivalent is CW,
-  // not CCW. With CCW we were showing the bright inner face instead of the dark
-  // outer one.
+  // Our view mirrors camera.js (det -1) and D3D's viewport is Y-flipped vs WebGL;
+  // both invert screen winding, so the reference's back-face cull maps to CW here.
   d3dSetRenderState(D3DRS_CULLMODE, wire ? D3DCULL_NONE : D3DCULL_CW);
   d3dSetRenderState(D3DRS_FILLMODE, wire ? D3DFILL_WIREFRAME : D3DFILL_SOLID);
 
-  dev->SetTexture(0, NULL);
-  d3dSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-  d3dSetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-  d3dSetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-  d3dSetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-  d3dSetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-  d3dSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+  // t0 = environment reflection cube; t1/t2/t3 = normalization cube. CLAMP+LINEAR.
+  dev->SetTexture(0, envCube);
+  dev->SetTexture(1, normCube);
+  dev->SetTexture(2, normCube);
+  dev->SetTexture(3, normCube);
+  for (int s = 0; s < 4; s++)
+  {
+    d3dSetTextureStageState(s, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+    d3dSetTextureStageState(s, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+    d3dSetTextureStageState(s, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+    d3dSetTextureStageState(s, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+    d3dSetTextureStageState(s, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+    d3dSetTextureStageState(s, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
+  }
 
-  dev->SetVertexShader(SHIELD_FVF);
+  dev->SetVertexShader(m_vs);
+  dev->SetPixelShader(m_ps);
 
-  // WORLD identity: panel vertices are transformed to world on the CPU.
-  D3DMATRIX id = Mat4::Identity().ToD3D();
-  dev->SetTransform(D3DTS_WORLD, &id);
+  dev->SetVertexShaderConstant(4, vpT, 4);   // c4-c7 = transpose(view*proj)
+  // c8=(0,1,2,.5), c9=eye, c10=blob light (origin), c11=mood light.
+  f32 vc[16];
+  vc[0]=0; vc[1]=1; vc[2]=2; vc[3]=0.5f;
+  vc[4]=eye.x; vc[5]=eye.y; vc[6]=eye.z; vc[7]=0.0f;
+  vc[8]=0; vc[9]=0; vc[10]=0; vc[11]=1.0f;
+  vc[12]=MOOD_LIGHT[0]; vc[13]=MOOD_LIGHT[1]; vc[14]=MOOD_LIGHT[2]; vc[15]=1.0f;
+  dev->SetVertexShaderConstant(8, vc, 4);
+
+  // pixel c0=(0,0,0,shading), c1=blob intensity, c2=shield colour.
+  f32 pc[12];
+  pc[0]=0; pc[1]=0; pc[2]=0; pc[3]=alpha;
+  pc[4]=intensity; pc[5]=intensity; pc[6]=intensity; pc[7]=intensity;
+  pc[8]=theme.shield.r; pc[9]=theme.shield.g; pc[10]=theme.shield.b; pc[11]=1.0f;
+  dev->SetPixelShaderConstant(0, pc, 3);
 
   Vec3 dir = look - eye;
   f32 blobDot = m_center[0]*dir.x + m_center[1]*dir.y + m_center[2]*dir.z;
@@ -425,12 +440,16 @@ void CShieldManager::Draw(LPDIRECT3DDEVICE8 dev, f32 t, const CTheme& theme,
       Shield& s = m_shields[i];
       f32 d = s.center[0]*dir.x + s.center[1]*dir.y + s.center[2]*dir.z;
       if (pass == 0 ? (d < blobDot) : (d >= blobDot)) continue;
-      DrawPanel(dev, m_panel, s.matrix, theme.shield, intensity, alpha);
+      DrawPanel(dev, m_panelVB, m_panelStrip, s.matrix);
     }
   }
   for (int i = 0; i < MAX_ZSHIELDS; i++)
-    DrawPanel(dev, m_zmesh[i], m_zshields[i].matrix, theme.shield, intensity, alpha);
+    DrawPanel(dev, m_zVB[i], m_zStrip[i], m_zshields[i].matrix);
 
+  // Restore for later fixed-function passes.
+  dev->SetPixelShader(NULL);
+  dev->SetVertexShader(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+  dev->SetTexture(0, NULL); dev->SetTexture(1, NULL); dev->SetTexture(2, NULL); dev->SetTexture(3, NULL);
   d3dSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
   d3dSetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   d3dSetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);

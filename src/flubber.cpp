@@ -221,6 +221,29 @@ static LPDIRECT3DCUBETEXTURE8 BuildNormalizationCube(LPDIRECT3DDEVICE8 dev, int 
   return cube;
 }
 
+// Placeholder environment reflection cube: a small all-black cube (so the shield
+// shader's env term contributes nothing for now; the real scene->cube bake lands
+// next). All-zero data is swizzle-invariant, so no XGSwizzle is needed.
+static LPDIRECT3DCUBETEXTURE8 BuildBlackCube(LPDIRECT3DDEVICE8 dev, int size)
+{
+  LPDIRECT3DCUBETEXTURE8 cube = 0;
+  if (FAILED(dev->CreateCubeTexture(size, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &cube)))
+    return 0;
+  for (int f = 0; f < 6; f++)
+  {
+    LPDIRECT3DSURFACE8 face = 0;
+    if (FAILED(cube->GetCubeMapSurface((D3DCUBEMAP_FACES)f, 0, &face))) continue;
+    D3DLOCKED_RECT lr;
+    if (SUCCEEDED(face->LockRect(&lr, 0, 0)))
+    {
+      for (int y = 0; y < size; y++) memset((BYTE*)lr.pBits + y * lr.Pitch, 0, size * 4);
+      face->UnlockRect();
+    }
+    face->Release();
+  }
+  return cube;
+}
+
 // Fill a static stream-0 VB with unit-sphere positions in triangle-strip order.
 static void FillUsStrip(LPDIRECT3DVERTEXBUFFER8 vb, const f32* pos, const u16* idx, int n)
 {
@@ -236,7 +259,7 @@ CFlubber::CFlubber()
   : m_dev(null), m_x(0), m_y(0), m_w(0), m_h(0), m_time(0.0f),
     m_eBase(0.0f), m_ePulse(0.0f), m_eBlob(0.0f),
     m_blob(null), m_blobStripVerts(0), m_blobletStripVerts(0),
-    m_vsBlob(0), m_psBlob(0), m_vsBloblet(0), m_psBloblet(0), m_normCube(null),
+    m_vsBlob(0), m_psBlob(0), m_vsBloblet(0), m_psBloblet(0), m_normCube(null), m_envCube(null),
     m_blobUsVB(null), m_blobChVB(null), m_blobletUsVB(null),
     m_glowTex(null), m_haloVB(null),
     m_plasmaTex(null), m_plasmaVB(null)
@@ -283,6 +306,7 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
   m_vsBloblet = LoadVS(m_dev, kBlobletDecl, g_vbloblet_xvu);
   m_psBloblet = LoadPS(m_dev, g_vbloblet_xpu);
   m_normCube  = BuildNormalizationCube(m_dev, 64);
+  m_envCube   = BuildBlackCube(m_dev, 16);   // real scene reflection lands next slice
 
   // stream0 (static): blob unit-sphere positions in strip order.
   m_dev->CreateVertexBuffer(m_blobStripVerts * sizeof(UsVtx), 0, 0, D3DPOOL_DEFAULT, &m_blobUsVB);
@@ -328,6 +352,7 @@ void CFlubber::Release()
   SAFE_RELEASE(m_plasmaTex);
   SAFE_RELEASE(m_haloVB);
   SAFE_RELEASE(m_glowTex);
+  SAFE_RELEASE(m_envCube);
   SAFE_RELEASE(m_normCube);
   SAFE_RELEASE(m_blobletUsVB);
   SAFE_RELEASE(m_blobChVB);
@@ -610,7 +635,8 @@ void CFlubber::DrawScene()
 // --- shields: 3 shields + 5 zshields, translucent glinting panels ----------
 void CFlubber::DrawShields()
 {
-  m_shieldMgr.Draw(m_dev, m_time, m_theme, m_eye, m_look, m_eBlob);
+  f32 vpT[16]; BuildVpTranspose(m_view, m_proj, vpT);
+  m_shieldMgr.Draw(m_dev, m_envCube, m_normCube, vpT, m_time, m_theme, m_eye, m_look, m_eBlob);
 }
 
 // --- plasma / fog: additive radial glow centred on the blob's screen pos ---

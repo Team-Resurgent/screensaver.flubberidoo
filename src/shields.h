@@ -69,13 +69,15 @@ public:
   // Build geometry + initial state. 'rand' is the app RNG AFTER the 12 pulses
   // have been drawn (shields.js: state.pulseRand is shared with makePulses).
   void Build(QuickRand& rand);
-  bool CreateBuffers(LPDIRECT3DDEVICE8 dev);   // dynamic strip VB
+  bool CreateBuffers(LPDIRECT3DDEVICE8 dev);   // static strip VBs + load shaders
   void Release();
 
   void Seek(f32 target);   // fixed 1/60s stepping; restarts on rewind
 
-  // Draw all panels (far pass, near pass, then zshields) at time t.
-  void Draw(LPDIRECT3DDEVICE8 dev, f32 t, const CTheme& theme,
+  // Draw all panels (far pass, near pass, then zshields) at time t, using the
+  // real shield.vsh/.psh. envCube = scene reflection; normCube = normalization.
+  void Draw(LPDIRECT3DDEVICE8 dev, LPDIRECT3DCUBETEXTURE8 envCube,
+            LPDIRECT3DCUBETEXTURE8 normCube, const f32* vpT, f32 t, const CTheme& theme,
             const Vec3& eye, const Vec3& look, f32 energyBlob);
 
   // Test hooks (used by the host numeric-validation harness).
@@ -91,8 +93,8 @@ private:
   void NewShield(Shield& s);
   void AdvanceShield(Shield& s, f32 dt);
   void AdvanceZShield(ZShield& z, f32 dt);
-  void DrawPanel(LPDIRECT3DDEVICE8 dev, const ShieldMesh& mesh, const Mat4& world,
-                 const CRGBA& tint, f32 intensity, f32 alpha);
+  void DrawPanel(LPDIRECT3DDEVICE8 dev, LPDIRECT3DVERTEXBUFFER8 vb, int stripVerts,
+                 const Mat4& world);
 
   ShieldMesh m_panel;          // shared by the 3 shields
   ShieldMesh m_zmesh[MAX_ZSHIELDS];
@@ -105,6 +107,8 @@ private:
   f32  m_radiusScale;
   f32  m_time;
 
-  LPDIRECT3DVERTEXBUFFER8 m_vb;   // reused per-panel dynamic buffer
-  int  m_vbVerts;                 // capacity in vertices
+  // Real-shader rendering: static strip VBs (object-space pos+normal) + shaders.
+  DWORD m_vs, m_ps;
+  LPDIRECT3DVERTEXBUFFER8 m_panelVB;  int m_panelStrip;
+  LPDIRECT3DVERTEXBUFFER8 m_zVB[MAX_ZSHIELDS]; int m_zStrip[MAX_ZSHIELDS];
 };
