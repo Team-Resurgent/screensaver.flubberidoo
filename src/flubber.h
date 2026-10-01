@@ -80,15 +80,18 @@ private:
   CScene                  m_scene;
   CShieldManager          m_shieldMgr;
   CBlobSim*               m_blob;
-  LPDIRECT3DVERTEXBUFFER8 m_blobVB;   // strip-ordered body vertices (dynamic)
-  int                     m_blobStripVerts;  // == strip index count
-  std::vector<BlobVtx>    m_blobUnique;       // per-unique-vertex scratch
+  int                     m_blobStripVerts;
+  int                     m_blobletStripVerts;
+
+  // Real-shader blob pipeline (vblob / vbloblet) + normalization cubemap.
+  DWORD                   m_vsBlob, m_psBlob, m_vsBloblet, m_psBloblet;
+  LPDIRECT3DCUBETEXTURE8  m_normCube;     // normalization cubemap (t0/t1)
+  LPDIRECT3DVERTEXBUFFER8 m_blobUsVB;     // stream0 static: unit-sphere pos (strip)
+  LPDIRECT3DVERTEXBUFFER8 m_blobChVB;     // stream1 dynamic: changing nx,ny,nz,disp
+  LPDIRECT3DVERTEXBUFFER8 m_blobletUsVB;  // bloblet stream0 static: unit-sphere pos
 
   LPDIRECT3DTEXTURE8      m_glowTex;   // procedural radial glow (halo)
   LPDIRECT3DVERTEXBUFFER8 m_haloVB;    // 4-vertex camera-facing billboard
-  LPDIRECT3DVERTEXBUFFER8 m_blobletVB; // one drop's strip at a time (dynamic)
-  int                     m_blobletStripVerts;
-  std::vector<BlobVtx>    m_blobletUnique;
 
   LPDIRECT3DTEXTURE8      m_plasmaTex; // radial exp() falloff for the plasma
   LPDIRECT3DVERTEXBUFFER8 m_plasmaVB;  // 4-vertex screen-space overlay quad

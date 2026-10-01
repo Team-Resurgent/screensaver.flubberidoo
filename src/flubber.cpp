@@ -10,8 +10,17 @@
 
 #include "main.h"      // d3dSetRenderState / d3dSetTextureStageState wrappers
 #include "flubber.h"
+#include "flubshaders_bin.h"   // pre-assembled NV2A shader blobs (g_vblob_*, ...)
 
 #include <math.h>
+#include <string.h>
+#include <xgraphics.h>         // XGSwizzleRect (cube textures must be swizzled)
+
+// The production .xbs links xbox_dx8.lib via main.h's pragma; it also needs
+// xgraphics for XGSwizzleRect. The standalone runner links xgraphics itself.
+#ifndef FLUBBERIDOO_NO_DX8_LIB_PRAGMA
+#pragma comment(lib, "xgraphics.lib")
+#endif
 
 using namespace flubtime;
 
@@ -49,16 +58,16 @@ static void MakePulses(QuickRand& rng, FlubPulse* pulses)
   pulses[11].z *= 3.0f;
 }
 
+// Cinematic screensaver intensity: no boot-anim fade-in/ramp. The base is held
+// at a steady "mature" level so the flubber continuously illuminates the scene,
+// and the 12 pulses give it its heartbeat. (Original ramped base 0 -> ~0.5 over
+// the demo and faded in; that caused a brightness reset at each loop point.)
+static const f32 STEADY_BASE = 0.5f;
 static Energy IntensityAt(f32 t, const FlubPulse* pulses)
 {
   Energy e;
-  e.base = 0.0f;
-  if (t >= BLOB_ZERO_INTENSE_END)
-  {
-    f32 u = (t - BLOB_ZERO_INTENSE_END) / MAX_INTENSITY_DELTA;
-    e.base = 0.5f * u * u + 0.5f * u;
-  }
-  e.pulse = (t < DEMO_TOTAL_TIME) ? SumPulses(pulses, t) : 0.0f;
+  e.base = STEADY_BASE;
+  e.pulse = SumPulses(pulses, t);
   e.blob = e.base + e.pulse;
   return e;
 }
@@ -132,12 +141,104 @@ static bool BuildPlasmaTexture(LPDIRECT3DDEVICE8 dev, LPDIRECT3DTEXTURE8* out)
   return true;
 }
 
+/* ----------------------------------------------- real-shader blob infra --- */
+struct UsVtx { f32 x, y, z; };          // stream0: unit-sphere position
+struct ChVtx { f32 x, y, z, w; };       // stream1: accumulated normal + displacement
+
+// Vertex declarations matching blob.cpp.
+static const DWORD kBlobDecl[] = {
+  D3DVSD_STREAM(0), D3DVSD_REG(0, D3DVSDT_FLOAT3),
+  D3DVSD_STREAM(1), D3DVSD_REG(1, D3DVSDT_FLOAT4),
+  D3DVSD_END()
+};
+static const DWORD kBlobletDecl[] = {
+  D3DVSD_STREAM(0), D3DVSD_REG(0, D3DVSDT_FLOAT3),
+  D3DVSD_END()
+};
+
+static DWORD LoadPS(LPDIRECT3DDEVICE8 dev, const BYTE* blob)
+{
+  const D3DPIXELSHADERDEF_FILE* f = (const D3DPIXELSHADERDEF_FILE*)blob;
+  DWORD h = 0;
+  dev->CreatePixelShader((D3DPIXELSHADERDEF*)&f->Psd, &h);
+  return h;
+}
+static DWORD LoadVS(LPDIRECT3DDEVICE8 dev, const DWORD* decl, const BYTE* blob)
+{
+  DWORD h = 0;
+  dev->CreateVertexShader(decl, (const DWORD*)blob, &h, 0);
+  return h;
+}
+
+// VectorToRGBA: unit vector -> ARGB (decoded in the pixel shader via _bx2).
+static DWORD VecToRGBA(f32 x, f32 y, f32 z)
+{
+  int r = (int)((x + 1.0f) * 127.5f);
+  int g = (int)((y + 1.0f) * 127.5f);
+  int b = (int)((z + 1.0f) * 127.5f);
+  return ((DWORD)255 << 24) | ((DWORD)r << 16) | ((DWORD)g << 8) | (DWORD)b;
+}
+
+// tex_gen::CreateNormalizationCubeMap — each texel encodes its normalized dir.
+static LPDIRECT3DCUBETEXTURE8 BuildNormalizationCube(LPDIRECT3DDEVICE8 dev, int size)
+{
+  LPDIRECT3DCUBETEXTURE8 cube = 0;
+  if (FAILED(dev->CreateCubeTexture(size, 1, 0, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &cube)))
+    return 0;
+  std::vector<DWORD> src(size * size);
+  for (int f = 0; f < 6; f++)
+  {
+    LPDIRECT3DSURFACE8 face = 0;
+    if (FAILED(cube->GetCubeMapSurface((D3DCUBEMAP_FACES)f, 0, &face))) { cube->Release(); return 0; }
+    DWORD* p = &src[0];
+    for (int y = 0; y < size; y++)
+    {
+      f32 h = ((f32)y / (size - 1)) * 2.0f - 1.0f;
+      for (int x = 0; x < size; x++)
+      {
+        f32 w = ((f32)x / (size - 1)) * 2.0f - 1.0f;
+        f32 nx, ny, nz;
+        switch (f) {
+          case 0: nx = 1;  ny = -h; nz = -w; break;   // +X
+          case 1: nx = -1; ny = -h; nz = w;  break;   // -X
+          case 2: nx = w;  ny = 1;  nz = h;  break;   // +Y
+          case 3: nx = w;  ny = -1; nz = -h; break;   // -Y
+          case 4: nx = w;  ny = -h; nz = 1;  break;   // +Z
+          default: nx = -w; ny = -h; nz = -1; break;  // -Z
+        }
+        f32 l = (f32)sqrt(nx * nx + ny * ny + nz * nz); if (l < 1e-6f) l = 1.0f;
+        *p++ = VecToRGBA(nx / l, ny / l, nz / l);
+      }
+    }
+    D3DLOCKED_RECT lr;
+    if (SUCCEEDED(face->LockRect(&lr, 0, 0)))
+    {
+      XGSwizzleRect(&src[0], 0, NULL, lr.pBits, size, size, NULL, sizeof(DWORD));
+      face->UnlockRect();
+    }
+    face->Release();
+  }
+  return cube;
+}
+
+// Fill a static stream-0 VB with unit-sphere positions in triangle-strip order.
+static void FillUsStrip(LPDIRECT3DVERTEXBUFFER8 vb, const f32* pos, const u16* idx, int n)
+{
+  if (!vb) return;
+  UsVtx* v = 0;
+  if (FAILED(vb->Lock(0, 0, (BYTE**)&v, 0))) return;
+  for (int k = 0; k < n; k++) { int p = idx[k]; v[k].x = pos[p*3]; v[k].y = pos[p*3+1]; v[k].z = pos[p*3+2]; }
+  vb->Unlock();
+}
+
 /* --------------------------------------------------------------- CFlubber - */
 CFlubber::CFlubber()
   : m_dev(null), m_x(0), m_y(0), m_w(0), m_h(0), m_time(0.0f),
     m_eBase(0.0f), m_ePulse(0.0f), m_eBlob(0.0f),
-    m_blob(null), m_blobVB(null), m_blobStripVerts(0),
-    m_glowTex(null), m_haloVB(null), m_blobletVB(null), m_blobletStripVerts(0),
+    m_blob(null), m_blobStripVerts(0), m_blobletStripVerts(0),
+    m_vsBlob(0), m_psBlob(0), m_vsBloblet(0), m_psBloblet(0), m_normCube(null),
+    m_blobUsVB(null), m_blobChVB(null), m_blobletUsVB(null),
+    m_glowTex(null), m_haloVB(null),
     m_plasmaTex(null), m_plasmaVB(null)
 {
   m_view = Mat4::Identity();
@@ -173,36 +274,36 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
   // Blob body: strip-ordered dynamic vertex buffer (we expand the shared-vertex
   // strip into DrawPrimitive order to use the 3-arg Xbox DrawPrimitive).
   m_blob = new CBlobSim();
-  m_blobStripVerts = m_blob->StripIndexCount();
-  m_blobUnique.resize(m_blob->VertexCount());
+  m_blobStripVerts    = m_blob->StripIndexCount();
+  m_blobletStripVerts = m_blob->BlobletIndexCount();
 
-  if (FAILED(m_dev->CreateVertexBuffer(m_blobStripVerts * sizeof(BlobVtx),
-                                       D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
-                                       D3DFVF_XYZ | D3DFVF_DIFFUSE,
-                                       D3DPOOL_DEFAULT, &m_blobVB)))
-  {
-    m_blobVB = null;
-    return false;
-  }
+  // Real-shader blob pipeline: load vblob/vbloblet + the normalization cubemap.
+  m_vsBlob    = LoadVS(m_dev, kBlobDecl, g_vblob_xvu);
+  m_psBlob    = LoadPS(m_dev, g_vblob_xpu);
+  m_vsBloblet = LoadVS(m_dev, kBlobletDecl, g_vbloblet_xvu);
+  m_psBloblet = LoadPS(m_dev, g_vbloblet_xpu);
+  m_normCube  = BuildNormalizationCube(m_dev, 64);
 
-  // Static scene meshes (per-mesh expanded triangle-list buffers). Non-fatal if
-  // it fails: DrawScene guards each mesh, so the blob still renders.
+  // stream0 (static): blob unit-sphere positions in strip order.
+  m_dev->CreateVertexBuffer(m_blobStripVerts * sizeof(UsVtx), 0, 0, D3DPOOL_DEFAULT, &m_blobUsVB);
+  FillUsStrip(m_blobUsVB, m_blob->UnitPos(), m_blob->StripIndices(), m_blobStripVerts);
+  // stream1 (dynamic): changing (nx,ny,nz,disp), rebuilt each frame.
+  m_dev->CreateVertexBuffer(m_blobStripVerts * sizeof(ChVtx), 0, 0, D3DPOOL_DEFAULT, &m_blobChVB);
+  // bloblet stream0 (static).
+  m_dev->CreateVertexBuffer(m_blobletStripVerts * sizeof(UsVtx), 0, 0, D3DPOOL_DEFAULT, &m_blobletUsVB);
+  FillUsStrip(m_blobletUsVB, m_blob->BlobletPos(), m_blob->BlobletIndices(), m_blobletStripVerts);
+
+  // Static scene meshes (per-mesh expanded triangle-list buffers).
   m_scene.Create(m_dev);
 
   // Shields: geometry + initial state (drawing from m_appRand, after the pulses).
   m_shieldMgr.Build(m_appRand);
   m_shieldMgr.CreateBuffers(m_dev);
 
-  // Blob glow: procedural halo texture + a 4-vertex billboard, plus a dynamic
-  // buffer for one bloblet's strip at a time. All non-fatal (DrawBlob guards).
+  // Blob halo: procedural glow texture + a 4-vertex camera-facing billboard.
   BuildGlowTexture(m_dev, &m_glowTex);
   m_dev->CreateVertexBuffer(4 * sizeof(HaloVtx), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
                             D3DFVF_XYZ | D3DFVF_TEX1, D3DPOOL_DEFAULT, &m_haloVB);
-  m_blobletStripVerts = m_blob->BlobletIndexCount();
-  m_blobletUnique.resize(m_blob->BlobletVertCount());
-  m_dev->CreateVertexBuffer(m_blobletStripVerts * sizeof(BlobVtx),
-                            D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
-                            D3DFVF_XYZ | D3DFVF_DIFFUSE, D3DPOOL_DEFAULT, &m_blobletVB);
 
   // Plasma background glow: an exp() falloff texture + a screen-space quad.
   BuildPlasmaTexture(m_dev, &m_plasmaTex);
@@ -215,12 +316,22 @@ void CFlubber::Release()
 {
   m_shieldMgr.Release();
   m_scene.Release();
+  if (m_dev)
+  {
+    if (m_psBlob)    m_dev->DeletePixelShader(m_psBlob);
+    if (m_psBloblet) m_dev->DeletePixelShader(m_psBloblet);
+    if (m_vsBlob)    m_dev->DeleteVertexShader(m_vsBlob);
+    if (m_vsBloblet) m_dev->DeleteVertexShader(m_vsBloblet);
+  }
+  m_psBlob = m_psBloblet = m_vsBlob = m_vsBloblet = 0;
   SAFE_RELEASE(m_plasmaVB);
   SAFE_RELEASE(m_plasmaTex);
-  SAFE_RELEASE(m_blobletVB);
   SAFE_RELEASE(m_haloVB);
   SAFE_RELEASE(m_glowTex);
-  SAFE_RELEASE(m_blobVB);
+  SAFE_RELEASE(m_normCube);
+  SAFE_RELEASE(m_blobletUsVB);
+  SAFE_RELEASE(m_blobChVB);
+  SAFE_RELEASE(m_blobUsVB);
   SAFE_DELETE(m_blob);
   m_dev = null;   // XBMC / the runner owns the device
 }
@@ -292,9 +403,18 @@ bool CFlubber::Draw()
 // fresnel fragment; here we fold both into a per-vertex CPU pass and draw with
 // the fixed-function pipeline (vertex diffuse selected straight through). The
 // camera-facing halo and the bloblets are added in a later slice.
+// Build c4-c7 = transpose(view*proj), reused by the blob + bloblet vertex shaders.
+static void BuildVpTranspose(const Mat4& view, const Mat4& proj, f32 out[16])
+{
+  Mat4 vp = view * proj;
+  for (int i = 0; i < 4; i++)
+    for (int j = 0; j < 4; j++)
+      out[i * 4 + j] = vp.m[j * 4 + i];
+}
+
 void CFlubber::DrawBlob()
 {
-  if (!m_blob || !m_blobVB)
+  if (!m_blob)
     return;
 
   // The blob sim was advanced in Draw(); the scene may have left lighting on.
@@ -362,96 +482,91 @@ void CFlubber::DrawBlob()
     }
   }
 
-  // --- Body (opaque) -------------------------------------------------------
-  d3dSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-  d3dSetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-
-  f32 colorIntensity = BLOB_BASE_INTENSITY + 4.0f * (1.2f * m_eBase + 0.8f * m_ePulse);
-  f32 tFade = m_time * 4.0f; if (tFade > 1.0f) tFade = 1.0f;
-  colorIntensity *= tFade;
-
-  f32 cr = m_theme.blobColor.r * colorIntensity;
-  f32 cg = m_theme.blobColor.g * colorIntensity;
-  f32 cb = m_theme.blobColor.b * colorIntensity;
-
-  const f32* us = m_blob->UnitPos();
-  const f32* ch = m_blob->Changing();
-  int vc = m_blob->VertexCount();
-
-  // Per unique vertex: world position (aUs*(curRad+disp)) + fresnel diffuse.
-  for (int i = 0; i < vc; i++)
-  {
-    f32 ux = us[i * 3], uy = us[i * 3 + 1], uz = us[i * 3 + 2];
-    f32 nx = ch[i * 4], ny = ch[i * 4 + 1], nz = ch[i * 4 + 2], disp = ch[i * 4 + 3];
-    f32 rad = curRad + disp;
-    f32 wx = ux * rad, wy = uy * rad, wz = uz * rad;
-
-    f32 nlen = (f32)sqrt(nx * nx + ny * ny + nz * nz); if (nlen < 1e-6f) nlen = 1.0f;
-    f32 Nx = nx / nlen, Ny = ny / nlen, Nz = nz / nlen;
-
-    f32 ex = m_eye.x - wx, ey = m_eye.y - wy, ez = m_eye.z - wz;
-    f32 elen = (f32)sqrt(ex * ex + ey * ey + ez * ez); if (elen < 1e-6f) elen = 1.0f;
-    ex /= elen; ey /= elen; ez /= elen;
-
-    f32 r1 = Nx * ex + Ny * ey + Nz * ez;
-    if (r1 < 0.0f) r1 = 0.0f; else if (r1 > 1.0f) r1 = 1.0f;
-    f32 r0 = (1.0f - r1) * (1.0f - r1);
-    f32 fr = 1.0f - r0;
-
-    CRGBA c(fr * cr, fr * cg, fr * cb, fr);   // uAmbient=0, uAlpha=1
-    m_blobUnique[i].x = wx; m_blobUnique[i].y = wy; m_blobUnique[i].z = wz;
-    m_blobUnique[i].color = c.RenderColor();
-  }
-
-  // Expand the shared-vertex triangle strip into DrawPrimitive order.
-  const u16* idx = m_blob->StripIndices();
-  BlobVtx* vb = 0;
-  if (FAILED(m_blobVB->Lock(0, 0, (BYTE**)&vb, 0)))
+  if (!m_vsBlob || !m_psBlob || !m_blobUsVB || !m_blobChVB)
     return;
-  for (int k = 0; k < m_blobStripVerts; k++)
-    vb[k] = m_blobUnique[idx[k]];
-  m_blobVB->Unlock();
 
-  // Fixed-function: pass the vertex diffuse straight through (no texture).
-  m_dev->SetTexture(0, NULL);
-  d3dSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-  d3dSetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-  d3dSetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-  d3dSetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-  d3dSetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-  d3dSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-
+  // --- Body: real vblob vertex+pixel shaders (fresnel via normalization cube).
+  d3dSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  d3dSetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+  d3dSetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+  d3dSetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   d3dSetRenderState(D3DRS_FILLMODE, m_theme.blobWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID);
 
-  m_dev->SetStreamSource(0, m_blobVB, sizeof(BlobVtx));
-  m_dev->SetVertexShader(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+  // Normalization cubemap on t0 (normal) and t1 (eye); CLAMP + LINEAR, no mip.
+  for (int s = 0; s < 2; s++)
+  {
+    d3dSetTextureStageState(s, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+    d3dSetTextureStageState(s, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+    d3dSetTextureStageState(s, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+    d3dSetTextureStageState(s, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+    d3dSetTextureStageState(s, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+    d3dSetTextureStageState(s, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
+  }
+  m_dev->SetTexture(0, m_normCube);
+  m_dev->SetTexture(1, m_normCube);
+
+  m_dev->SetVertexShader(m_vsBlob);
+  m_dev->SetPixelShader(m_psBlob);
+
+  f32 vpT[16]; BuildVpTranspose(m_view, m_proj, vpT);
+  m_dev->SetVertexShaderConstant(4, vpT, 4);
+
+  // c8=(0,1,2,0.5), c9=eye, c10=scaling, c11=1/scaling, c12=center.
+  f32 vc5[20];
+  vc5[0]=0; vc5[1]=1; vc5[2]=2; vc5[3]=0.5f;
+  vc5[4]=m_eye.x; vc5[5]=m_eye.y; vc5[6]=m_eye.z; vc5[7]=1.0f;
+  vc5[8]=curRad; vc5[9]=curRad; vc5[10]=curRad; vc5[11]=1.0f;
+  vc5[12]=1.0f/curRad; vc5[13]=1.0f/curRad; vc5[14]=1.0f/curRad; vc5[15]=1.0f;
+  vc5[16]=0; vc5[17]=0; vc5[18]=0; vc5[19]=0;
+  m_dev->SetVertexShaderConstant(8, vc5, 5);
+
+  // colour intensity: steady (no start fade-in; m_eBase is held at a mature level).
+  f32 colorIntensity = BLOB_BASE_INTENSITY + 4.0f * (1.2f * m_eBase + 0.8f * m_ePulse);
+  f32 pc[8];
+  pc[0]=m_theme.blobColor.r*colorIntensity; pc[1]=m_theme.blobColor.g*colorIntensity;
+  pc[2]=m_theme.blobColor.b*colorIntensity; pc[3]=1.0f;      // c0 = blob colour (a=opaque)
+  pc[4]=0; pc[5]=0; pc[6]=0; pc[7]=0;                        // c1 = ambient (black)
+  m_dev->SetPixelShaderConstant(0, pc, 2);
+
+  // stream1 (changing) in strip order.
+  {
+    const f32* ch = m_blob->Changing();
+    const u16* idx = m_blob->StripIndices();
+    ChVtx* cv = 0;
+    if (SUCCEEDED(m_blobChVB->Lock(0, 0, (BYTE**)&cv, 0)))
+    {
+      for (int k = 0; k < m_blobStripVerts; k++)
+      { int p = idx[k]; cv[k].x = ch[p*4]; cv[k].y = ch[p*4+1]; cv[k].z = ch[p*4+2]; cv[k].w = ch[p*4+3]; }
+      m_blobChVB->Unlock();
+    }
+  }
+  m_dev->SetStreamSource(0, m_blobUsVB, sizeof(UsVtx));
+  m_dev->SetStreamSource(1, m_blobChVB, sizeof(ChVtx));
   m_dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, m_blobStripVerts - 2);
 
   d3dSetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 
-  // --- Bloblets (drops): anisotropic ellipsoids, alpha-blended -------------
+  // --- Bloblets: real vbloblet shaders (anisotropic ellipsoid + fresnel) ----
   int nb = m_blob->numBloblets;
-  if (nb > 0 && m_blobletVB && m_blobletStripVerts >= 3)
+  if (nb > 0 && m_vsBloblet && m_psBloblet && m_blobletUsVB && m_blobletStripVerts >= 3)
   {
-    d3dSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    d3dSetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-    d3dSetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    d3dSetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    m_dev->SetTexture(0, NULL);
-    d3dSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-    d3dSetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-    d3dSetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-    d3dSetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-    m_dev->SetVertexShader(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+    m_dev->SetVertexShader(m_vsBloblet);
+    m_dev->SetPixelShader(m_psBloblet);
+    m_dev->SetVertexShaderConstant(4, vpT, 4);
 
-    const f32* bus = m_blob->BlobletPos();
-    int bvc = m_blob->BlobletVertCount();
-    const u16* bidx = m_blob->BlobletIndices();
+    f32 vc2[8];
+    vc2[0]=0; vc2[1]=1; vc2[2]=2; vc2[3]=0.5f;                 // c8
+    vc2[4]=m_eye.x; vc2[5]=m_eye.y; vc2[6]=m_eye.z; vc2[7]=1.0f; // c9
+    m_dev->SetVertexShaderConstant(8, vc2, 2);
 
     f32 eb = m_eBlob;
-    f32 ucr = m_theme.blobColor.r * 0.3f * eb, ucg = m_theme.blobColor.g * 0.3f * eb, ucb = m_theme.blobColor.b * 0.3f * eb;
-    f32 uar = m_theme.blobColor.r * 0.2f, uag = m_theme.blobColor.g * 0.2f, uab = m_theme.blobColor.b * 0.2f;
-    f32 ualpha = 0.6f * eb;
+    f32 bp[12];
+    bp[0]=m_theme.blobColor.r*0.3f*eb; bp[1]=m_theme.blobColor.g*0.3f*eb; bp[2]=m_theme.blobColor.b*0.3f*eb; bp[3]=1.0f; // c0
+    bp[4]=m_theme.blobColor.r*0.2f;    bp[5]=m_theme.blobColor.g*0.2f;    bp[6]=m_theme.blobColor.b*0.2f;    bp[7]=1.0f; // c1
+    bp[8]=2.0f; bp[9]=2.0f; bp[10]=2.0f; bp[11]=2.0f;                                                                    // c2
+    m_dev->SetPixelShaderConstant(0, bp, 3);
+
+    m_dev->SetStreamSource(0, m_blobletUsVB, sizeof(UsVtx));
 
     for (int d = 0; d < nb; d++)
     {
@@ -459,39 +574,23 @@ void CFlubber::DrawBlob()
       f32 w = drop.fWobble; if (w < 1e-6f) w = 1e-6f;
       f32 perp = drop.fRadius / (f32)sqrt(w);
       f32 pmp = drop.fRadius * drop.fWobble - perp;
-      f32 pmx = pmp * drop.vDirection[0], pmy = pmp * drop.vDirection[1], pmz = pmp * drop.vDirection[2];
-      f32 cx = drop.vPosition[0], cy = drop.vPosition[1], cz = drop.vPosition[2];
-      f32 dx = drop.vDirection[0], dy = drop.vDirection[1], dz = drop.vDirection[2];
-
-      for (int i = 0; i < bvc; i++)
-      {
-        f32 ax = bus[i*3], ay = bus[i*3+1], az = bus[i*3+2];
-        f32 adot = ax*dx + ay*dy + az*dz;
-        f32 wx = perp*ax + adot*pmx + cx;
-        f32 wy = perp*ay + adot*pmy + cy;
-        f32 wz = perp*az + adot*pmz + cz;
-        f32 ex = m_eye.x - wx, ey = m_eye.y - wy, ez = m_eye.z - wz;
-        f32 el = (f32)sqrt(ex*ex + ey*ey + ez*ez); if (el < 1e-6f) el = 1.0f;
-        ex /= el; ey /= el; ez /= el;
-        f32 nlen = (f32)sqrt(ax*ax + ay*ay + az*az); if (nlen < 1e-6f) nlen = 1.0f;
-        f32 r1 = (ax*ex + ay*ey + az*ez) / nlen; if (r1 < 0) r1 = 0; else if (r1 > 1) r1 = 1;
-        f32 r0 = (1.0f - r1) * (1.0f - r1); f32 fr = 1.0f - r0;
-        CRGBA c(fr*ucr + uar, fr*ucg + uag, fr*ucb + uab, fr*ualpha);
-        m_blobletUnique[i].x = wx; m_blobletUnique[i].y = wy; m_blobletUnique[i].z = wz;
-        m_blobletUnique[i].color = c.RenderColor();
-      }
-
-      BlobVtx* bv = 0;
-      if (SUCCEEDED(m_blobletVB->Lock(0, 0, (BYTE**)&bv, 0)))
-      {
-        for (int k = 0; k < m_blobletStripVerts; k++) bv[k] = m_blobletUnique[bidx[k]];
-        m_blobletVB->Unlock();
-        m_dev->SetStreamSource(0, m_blobletVB, sizeof(BlobVtx));
-        m_dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, m_blobletStripVerts - 2);
-      }
+      f32 bv[16];
+      bv[0]=drop.vPosition[0]; bv[1]=drop.vPosition[1]; bv[2]=drop.vPosition[2]; bv[3]=0.0f;   // c10 center
+      bv[4]=drop.vDirection[0]; bv[5]=drop.vDirection[1]; bv[6]=drop.vDirection[2]; bv[7]=1.0f; // c11 dir
+      bv[8]=perp; bv[9]=perp; bv[10]=perp; bv[11]=1.0f;                                         // c12 perp
+      bv[12]=pmp*drop.vDirection[0]; bv[13]=pmp*drop.vDirection[1]; bv[14]=pmp*drop.vDirection[2]; bv[15]=1.0f; // c13
+      m_dev->SetVertexShaderConstant(10, bv, 4);
+      m_dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, m_blobletStripVerts - 2);
     }
-    d3dSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
   }
+
+  // Restore: drop the shaders so later passes use fixed-function again.
+  m_dev->SetPixelShader(NULL);
+  m_dev->SetVertexShader(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+  m_dev->SetTexture(0, NULL);
+  m_dev->SetTexture(1, NULL);
+  m_dev->SetStreamSource(1, NULL, 0);
+  d3dSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 }
 
 // --- scene geometry: 271 instances, hardware point light (scene_phong) -----

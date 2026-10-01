@@ -163,6 +163,9 @@
 				RelativePath=".\flubber.h">
 			</File>
 			<File
+				RelativePath=".\flubshaders_bin.h">
+			</File>
+			<File
 				RelativePath=".\flubconst.h">
 			</File>
 			<File
