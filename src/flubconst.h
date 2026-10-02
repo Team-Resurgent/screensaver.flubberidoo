@@ -30,6 +30,12 @@ namespace flubtime
   const f32 SCENE_ANIM_LEN           = 4.5f;
   const f32 SCENE_ANIM_START_TIME    = BLOB_STATIC_END_TIME + 0.25f;                               // 0.85
 
+  // Cinematic scene-geometry cycle (the "lasers"): rise 0->1, hold, reverse
+  // 1->0, hold, repeat forever, with a fresh random hold each pause. Decoupled
+  // from the blob/shield boot clock so it drifts on its own longer rhythm.
+  const f32 SCENE_HOLD_MIN           = 3.0f;
+  const f32 SCENE_HOLD_MAX           = 8.0f;
+
   const f32 SHIELD_FADE_IN_START     = BLOB_STATIC_END_TIME;                                       // 0.6
   const f32 SHIELD_FADE_IN_DELTA     = 1.2f;
   const f32 SHIELD_FADE_OUT_START    = FINISH_START_TIME - 0.1f;                                   // 5.1

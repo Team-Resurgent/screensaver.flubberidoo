@@ -227,7 +227,9 @@ CFlubber::CFlubber()
     m_vsBlob(0), m_psBlob(0), m_vsBloblet(0), m_psBloblet(0), m_normCube(null), m_envCube(null),
     m_blobUsVB(null), m_blobChVB(null), m_blobletUsVB(null),
     m_glowTex(null), m_haloVB(null),
-    m_fogTheta(1.0e9f)
+    m_fogTheta(1.0e9f),
+    m_sceneFpos(0.0f), m_scenePhase(SCENE_RISING), m_sceneHoldT(0.0f),
+    m_sceneHoldLen(0.0f), m_sceneRand(0x0C0FFEE1u)
 {
   m_view = Mat4::Identity();
   m_proj = Mat4::Identity();
@@ -333,6 +335,48 @@ void CFlubber::Update(f32 dtSeconds)
   m_time += dtSeconds;
   while (m_time >= FINISH_START_TIME)
     m_time -= FINISH_START_TIME;   // blob/shield sims restart on rewind
+
+  AdvanceSceneCycle(dtSeconds);
+}
+
+// The scene geometry ("lasers") rises (fpos 0->1), holds a random 3-8s, reverses
+// (1->0), holds again, forever. WorldOf(fpos) is stateless, so the parameter can
+// run backwards freely. This clock is in real seconds, independent of m_time.
+void CFlubber::AdvanceSceneCycle(f32 dt)
+{
+  f32 step = SCENE_ANIM_LEN > 0.0f ? dt / SCENE_ANIM_LEN : 1.0f;
+  switch (m_scenePhase)
+  {
+    case SCENE_RISING:
+      m_sceneFpos += step;
+      if (m_sceneFpos >= 1.0f)
+      {
+        m_sceneFpos = 1.0f;
+        m_scenePhase = SCENE_HOLD_UP;
+        m_sceneHoldT = 0.0f;
+        m_sceneHoldLen = SCENE_HOLD_MIN + m_sceneRand.Rand01() * (SCENE_HOLD_MAX - SCENE_HOLD_MIN);
+      }
+      break;
+    case SCENE_HOLD_UP:
+      m_sceneHoldT += dt;
+      if (m_sceneHoldT >= m_sceneHoldLen) m_scenePhase = SCENE_FALLING;
+      break;
+    case SCENE_FALLING:
+      m_sceneFpos -= step;
+      if (m_sceneFpos <= 0.0f)
+      {
+        m_sceneFpos = 0.0f;
+        m_scenePhase = SCENE_HOLD_DOWN;
+        m_sceneHoldT = 0.0f;
+        m_sceneHoldLen = SCENE_HOLD_MIN + m_sceneRand.Rand01() * (SCENE_HOLD_MAX - SCENE_HOLD_MIN);
+      }
+      break;
+    case SCENE_HOLD_DOWN:
+    default:
+      m_sceneHoldT += dt;
+      if (m_sceneHoldT >= m_sceneHoldLen) m_scenePhase = SCENE_RISING;
+      break;
+  }
 }
 
 void CFlubber::SetupFrame()
@@ -639,8 +683,7 @@ void CFlubber::DrawScene()
 {
   if (!m_blob)
     return;
-  f32 fpos = (m_time - SCENE_ANIM_START_TIME) / SCENE_ANIM_LEN;
-  m_scene.Draw(m_dev, fpos, m_blob, m_theme, m_eye, m_eBlob);
+  m_scene.Draw(m_dev, m_sceneFpos, m_blob, m_theme, m_eye, m_eBlob);
 }
 
 // --- shields: 3 shields + 5 zshields, translucent glinting panels ----------
@@ -680,8 +723,6 @@ void CFlubber::DrawPlasma()
   m_fogTheta = theta;
   cam.theta  = theta;
 
-  f32 fpos = (m_time - SCENE_ANIM_START_TIME) / SCENE_ANIM_LEN;
-  fpos = Clampf(fpos, 0.0f, 1.0f);
-
-  m_fog.Render(m_dev, m_scene, fpos, cam, m_eBlob, m_theme);
+  // The fog depth-carving pass must match the visible scene pose.
+  m_fog.Render(m_dev, m_scene, m_sceneFpos, cam, m_eBlob, m_theme);
 }

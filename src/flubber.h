@@ -67,6 +67,17 @@ private:
   CTheme m_theme;
 
   f32   m_time;                 // current time in [0, FINISH_START_TIME)
+
+  // Scene-geometry ("lasers") forward/reverse cycle, on its own real-seconds
+  // clock independent of m_time: rise -> hold -> reverse -> hold -> repeat.
+  enum ScenePhase { SCENE_RISING, SCENE_HOLD_UP, SCENE_FALLING, SCENE_HOLD_DOWN };
+  f32   m_sceneFpos;            // scene animation parameter, 0..1
+  int   m_scenePhase;
+  f32   m_sceneHoldT;           // elapsed time in the current hold
+  f32   m_sceneHoldLen;         // this hold's random duration [3,8] s
+  QuickRand m_sceneRand;        // RNG for the random hold durations
+  void  AdvanceSceneCycle(f32 dt);
+
   Mat4  m_view;
   Mat4  m_proj;
   Vec3  m_eye;                  // current camera position (for blob fresnel)
