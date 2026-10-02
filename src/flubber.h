@@ -71,7 +71,8 @@ private:
   // Scene-geometry ("lasers") forward/reverse cycle, on its own real-seconds
   // clock independent of m_time: rise -> hold -> reverse -> hold -> repeat.
   enum ScenePhase { SCENE_RISING, SCENE_HOLD_UP, SCENE_FALLING, SCENE_HOLD_DOWN };
-  f32   m_sceneFpos;            // scene animation parameter, 0..1
+  f32   m_sceneFpos;            // scene animation parameter, 0..1 (eased)
+  f32   m_sceneProg;            // linear progress 0..1 within rise/fall
   int   m_scenePhase;
   f32   m_sceneHoldT;           // elapsed time in the current hold
   f32   m_sceneHoldLen;         // this hold's random duration [3,8] s

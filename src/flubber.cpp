@@ -228,7 +228,7 @@ CFlubber::CFlubber()
     m_blobUsVB(null), m_blobChVB(null), m_blobletUsVB(null),
     m_glowTex(null), m_haloVB(null),
     m_fogTheta(1.0e9f),
-    m_sceneFpos(0.0f), m_scenePhase(SCENE_RISING), m_sceneHoldT(0.0f),
+    m_sceneFpos(0.0f), m_sceneProg(0.0f), m_scenePhase(SCENE_RISING), m_sceneHoldT(0.0f),
     m_sceneHoldLen(0.0f), m_sceneRand(0x0C0FFEE1u)
 {
   m_view = Mat4::Identity();
@@ -342,39 +342,47 @@ void CFlubber::Update(f32 dtSeconds)
 // The scene geometry ("lasers") rises (fpos 0->1), holds a random 3-8s, reverses
 // (1->0), holds again, forever. WorldOf(fpos) is stateless, so the parameter can
 // run backwards freely. This clock is in real seconds, independent of m_time.
+//
+// The rise and fall are eased with smoothstep (not linear): the lasers accelerate
+// out of each hold and decelerate to a settle at the top and bottom, so the
+// reverse reads as a dynamic spin-down rather than a mechanical rewind.
+static inline f32 SmoothStep(f32 p) { return p * p * (3.0f - 2.0f * p); }
+
 void CFlubber::AdvanceSceneCycle(f32 dt)
 {
   f32 step = SCENE_ANIM_LEN > 0.0f ? dt / SCENE_ANIM_LEN : 1.0f;
   switch (m_scenePhase)
   {
     case SCENE_RISING:
-      m_sceneFpos += step;
-      if (m_sceneFpos >= 1.0f)
+      m_sceneProg += step;
+      if (m_sceneProg >= 1.0f)
       {
-        m_sceneFpos = 1.0f;
+        m_sceneProg = 1.0f; m_sceneFpos = 1.0f;
         m_scenePhase = SCENE_HOLD_UP;
         m_sceneHoldT = 0.0f;
         m_sceneHoldLen = SCENE_HOLD_MIN + m_sceneRand.Rand01() * (SCENE_HOLD_MAX - SCENE_HOLD_MIN);
       }
+      else m_sceneFpos = SmoothStep(m_sceneProg);
       break;
     case SCENE_HOLD_UP:
       m_sceneHoldT += dt;
-      if (m_sceneHoldT >= m_sceneHoldLen) m_scenePhase = SCENE_FALLING;
+      if (m_sceneHoldT >= m_sceneHoldLen) { m_scenePhase = SCENE_FALLING; m_sceneProg = 0.0f; }
       break;
     case SCENE_FALLING:
-      m_sceneFpos -= step;
-      if (m_sceneFpos <= 0.0f)
+      m_sceneProg += step;
+      if (m_sceneProg >= 1.0f)
       {
-        m_sceneFpos = 0.0f;
+        m_sceneProg = 1.0f; m_sceneFpos = 0.0f;
         m_scenePhase = SCENE_HOLD_DOWN;
         m_sceneHoldT = 0.0f;
         m_sceneHoldLen = SCENE_HOLD_MIN + m_sceneRand.Rand01() * (SCENE_HOLD_MAX - SCENE_HOLD_MIN);
       }
+      else m_sceneFpos = 1.0f - SmoothStep(m_sceneProg);
       break;
     case SCENE_HOLD_DOWN:
     default:
       m_sceneHoldT += dt;
-      if (m_sceneHoldT >= m_sceneHoldLen) m_scenePhase = SCENE_RISING;
+      if (m_sceneHoldT >= m_sceneHoldLen) { m_scenePhase = SCENE_RISING; m_sceneProg = 0.0f; }
       break;
   }
 }
