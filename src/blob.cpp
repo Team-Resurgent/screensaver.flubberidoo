@@ -42,9 +42,12 @@ bool Bloblet::Update(CBlobSim* sim, f32 elapsed, f32 dt)
   // Forever mode: breathe the overall deformation in and out on a slow sine, so
   // the flubber inflates and relaxes cyclically instead of ramping to full and
   // staying stuck as an over-stretched tower. The initial ramp still eases it in.
+  // Peak well below full: the original only momentarily grazed timeProg~1 right
+  // before its 5.2s reset, so a full-extent spike never persisted. Cap the breathe
+  // to a gooey-but-not-tower range so the flubber stays constrained.
   const f32 BREATHE_RATE = 0.57f;   // ~11s inflate/deflate cycle
   f32 ramp     = FMin(1.0f, FMax(0.0f, (elapsed - BLOB_STATIC_END_TIME) * OO_MAX_INTENSITY_DELTA));
-  f32 breathe  = 0.5f + 0.4f * (f32)sin(elapsed * BREATHE_RATE);   // 0.1 .. 0.9
+  f32 breathe  = 0.4f + 0.3f * (f32)sin(elapsed * BREATHE_RATE);   // 0.1 .. 0.7
   f32 timeProg = ramp * breathe;
   f32 accelElapsed = FMin(elapsed, 8.0f);
   f32 t = fTimeMultiple * (elapsed - fStartTime);
