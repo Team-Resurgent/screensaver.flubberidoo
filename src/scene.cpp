@@ -247,3 +247,23 @@ void CScene::Draw(LPDIRECT3DDEVICE8 dev, f32 fpos, const CBlobSim* blob,
   d3dSetRenderState(D3DRS_SPECULARENABLE, FALSE);
   d3dSetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 }
+
+void CScene::DrawZ(LPDIRECT3DDEVICE8 dev, const Mat4& viewProj, f32 fpos)
+{
+  for (int ii = 0; ii < kFlubInstanceCount; ii++)
+  {
+    const FlubInstance& it = kFlubInstances[ii];
+    if (it.mesh < 0 || it.mesh >= m_meshCount || !m_vb[it.mesh]) continue;
+
+    Mat4 world = WorldOf(it, fpos);
+    Mat4 wvp = world * viewProj;
+    f32 fin[16];                                  // transpose(world*viewProj)
+    for (int i = 0; i < 4; i++)
+      for (int j = 0; j < 4; j++)
+        fin[i * 4 + j] = wvp.m[j * 4 + i];
+    dev->SetVertexShaderConstant(0, fin, 4);
+
+    dev->SetStreamSource(0, m_vb[it.mesh], sizeof(SceneVtx));
+    dev->DrawPrimitive(D3DPT_TRIANGLELIST, 0, m_vertCount[it.mesh] / 3);
+  }
+}

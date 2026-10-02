@@ -20,6 +20,7 @@
 #include "camera.h"
 #include "scene.h"
 #include "shields.h"
+#include "fog.h"
 
 #include <xtl.h>
 #include <string>
@@ -31,8 +32,6 @@
 struct BlobVtx { f32 x, y, z; DWORD color; };
 // Halo billboard vertex: world-space position + glow-texture UV.
 struct HaloVtx { f32 x, y, z, u, v; };
-// Pre-transformed (screen-space) vertex for the plasma overlay quad.
-struct PlasmaVtx { f32 x, y, z, rhw, u, v; };
 
 // One of the twelve intensity pulses (anim.js makePulses).
 struct FlubPulse { f32 x, y, z; };
@@ -95,6 +94,6 @@ private:
   LPDIRECT3DTEXTURE8      m_glowTex;   // procedural radial glow (halo)
   LPDIRECT3DVERTEXBUFFER8 m_haloVB;    // 4-vertex camera-facing billboard
 
-  LPDIRECT3DTEXTURE8      m_plasmaTex; // radial exp() falloff for the plasma
-  LPDIRECT3DVERTEXBUFFER8 m_plasmaVB;  // 4-vertex screen-space overlay quad
+  CFog m_fog;                          // real green-fog (intensity map + plasma)
+  f32  m_fogTheta;                     // previous camera azimuth, for unwrapping
 };

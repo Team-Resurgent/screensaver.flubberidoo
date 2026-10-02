@@ -131,6 +131,9 @@
 				RelativePath="..\src\shields.cpp">
 			</File>
 			<File
+				RelativePath="..\src\fog.cpp">
+			</File>
+			<File
 				RelativePath="..\src\theme.cpp">
 			</File>
 			<File
@@ -167,6 +170,9 @@
 			</File>
 			<File
 				RelativePath="..\src\shields.h">
+			</File>
+			<File
+				RelativePath="..\src\fog.h">
 			</File>
 			<File
 				RelativePath="..\src\theme.h">

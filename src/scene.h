@@ -36,6 +36,12 @@ public:
   void Draw(LPDIRECT3DDEVICE8 dev, f32 fpos, const CBlobSim* blob,
             const CTheme& theme, const Vec3& camPos, f32 energyBlob);
 
+  // Depth-only pass for the fog intensity map: re-draw every instance with the
+  // scene_zr shader already bound by the caller (which also set c16-c19). Each
+  // instance's FINAL_MAT = transpose(world * viewProj) goes to c0-c3. The bound
+  // shader reads only position (REG0), so the pos+normal buffers are reused.
+  void DrawZ(LPDIRECT3DDEVICE8 dev, const Mat4& viewProj, f32 fpos);
+
 private:
   LPDIRECT3DVERTEXBUFFER8 m_vb[32];   // one per mesh (kFlubMeshCount <= 32)
   int m_vertCount[32];                // expanded triangle-list vertex count
