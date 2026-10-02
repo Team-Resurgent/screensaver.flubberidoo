@@ -67,6 +67,7 @@ private:
   CTheme m_theme;
 
   f32   m_time;                 // current time in [0, FINISH_START_TIME)
+  f32   m_flyTime;              // continuous (unwrapped) clock for the fly-by camera
 
   // Scene-geometry ("lasers") forward/reverse cycle, on its own real-seconds
   // clock independent of m_time: rise -> hold -> reverse -> hold -> repeat.

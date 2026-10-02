@@ -221,7 +221,7 @@ static void FillUsStrip(LPDIRECT3DVERTEXBUFFER8 vb, const f32* pos, const u16* i
 
 /* --------------------------------------------------------------- CFlubber - */
 CFlubber::CFlubber()
-  : m_dev(null), m_x(0), m_y(0), m_w(0), m_h(0), m_time(0.0f),
+  : m_dev(null), m_x(0), m_y(0), m_w(0), m_h(0), m_time(0.0f), m_flyTime(0.0f),
     m_eBase(0.0f), m_ePulse(0.0f), m_eBlob(0.0f),
     m_blob(null), m_blobStripVerts(0), m_blobletStripVerts(0),
     m_vsBlob(0), m_psBlob(0), m_vsBloblet(0), m_psBloblet(0), m_normCube(null), m_envCube(null),
@@ -336,6 +336,7 @@ void CFlubber::Update(f32 dtSeconds)
   while (m_time >= FINISH_START_TIME)
     m_time -= FINISH_START_TIME;   // blob/shield sims restart on rewind
 
+  m_flyTime += dtSeconds;          // continuous clock for the fly-by camera
   AdvanceSceneCycle(dtSeconds);
 }
 
@@ -387,12 +388,34 @@ void CFlubber::AdvanceSceneCycle(f32 dt)
   }
 }
 
+// Cinematic fly-by: orbit the centre continuously while a slower sine lifts and
+// drops the elevation and a third sine zooms in and out, always looking at the
+// centre. The three periods are incommensurate so the path never obviously
+// repeats, giving a fluid, ever-changing fly-by. (Replaces the boot spline;
+// m_camera is still built for a possible future ini toggle.)
+static void BuildFlyCam(f32 t, Vec3& eye, Vec3& look)
+{
+  const f32 TWO_PI = 2.0f * PI;
+  const f32 ORBIT_PERIOD = 48.0f;              // seconds for a full 360 orbit
+  const f32 R_MID = 60.0f, R_AMP = 15.0f, R_PERIOD = 13.0f;   // zoom 45..75 (boot band)
+  const f32 PHI_AMP = 0.6f, PHI_PERIOD = 19.0f;               // rise/fall ~+-34 deg
+
+  f32 theta = (TWO_PI / ORBIT_PERIOD) * t;
+  f32 phi   = PHI_AMP * (f32)sin((TWO_PI / PHI_PERIOD) * t);
+  f32 rad   = R_MID + R_AMP * (f32)sin((TWO_PI / R_PERIOD) * t);
+
+  f32 cp = (f32)cos(phi), sp = (f32)sin(phi);
+  eye  = Vec3(rad * cp * (f32)cos(theta), rad * cp * (f32)sin(theta), rad * sp);
+  look = Vec3(0.0f, 0.0f, 0.0f);
+}
+
 void CFlubber::SetupFrame()
 {
-  CamShot shot = m_camera.Sample(m_time);
-  m_eye = shot.pos;
-  m_look = shot.look;
-  m_view = BuildLookAtLH(shot.pos, shot.look, Vec3(0.0f, 0.0f, 1.0f));
+  Vec3 eye, look;
+  BuildFlyCam(m_flyTime, eye, look);
+  m_eye = eye;
+  m_look = look;
+  m_view = BuildLookAtLH(eye, look, Vec3(0.0f, 0.0f, 1.0f));
 
   D3DMATRIX world = Mat4::Identity().ToD3D();
   D3DMATRIX view  = m_view.ToD3D();
