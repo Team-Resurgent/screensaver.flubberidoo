@@ -74,6 +74,7 @@ D3DDevice_SetPixelShaderConstant@12
 D3DDevice_DeletePixelShader@4
 D3DDevice_DeleteVertexShader@4
 D3DCubeTexture_GetCubeMapSurface2@12
+D3DTexture_GetSurfaceLevel2@8
 D3DSurface_LockRect@16
 @D3DDevice_SetVertexShaderConstant1@8
 @D3DDevice_SetVertexShaderConstant4@8
