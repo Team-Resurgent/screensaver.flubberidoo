@@ -37,6 +37,7 @@ D3DDevice_SetTextureState_ColorKeyColor@8
 D3DDevice_SetTextureState_BorderColor@8 
 D3DDevice_SetTextureState_TexCoordIndex@8 
 D3D__TextureState 
+D3DDevice_CreateSurface2@16
 D3DDevice_CreateTexture2@28 
 D3DDevice_CreateVertexBuffer2@4
 D3DDevice_SetTexture@8 
