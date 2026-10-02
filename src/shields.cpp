@@ -183,13 +183,13 @@ static void ZSide(const void* ctx, int i, int j, int border, f32 out[3])
 }
 
 /* ------------------------------------------------- shading ramps ---------- */
+// Forever mode: fade in once at the start, then hold at full. The boot-anim
+// fade-OUT is dropped so the shields never vanish as the continuous clock grows.
 static f32 ShieldShading(f32 t)
 {
   f32 shading = 0.75f;
   if (t < SHIELD_FADE_IN_START + SHIELD_FADE_IN_DELTA)
     shading *= (t - SHIELD_FADE_IN_START) / SHIELD_FADE_IN_DELTA;
-  else if (t > SHIELD_FADE_OUT_START)
-    shading *= (SHIELD_FADE_OUT_START + SHIELD_FADE_OUT_DELTA - t) / SHIELD_FADE_OUT_DELTA;
   return Clampf(shading, 0.0f, 1.0f);
 }
 static f32 ShieldIntensity(f32 t, f32 blob)
@@ -319,9 +319,14 @@ void CShieldManager::Restart()
   m_time = 0.0f;
 }
 
+// Cap the ramping spin at a steady terminal speed so the shields settle into a
+// continuous, bounded rotation instead of accelerating forever.
+static const f32 SHIELD_SPEED_CAP = 2.5f;
+
 void CShieldManager::AdvanceShield(Shield& s, f32 dt)
 {
   s.speed += dt * 0.8f;
+  if (s.speed > SHIELD_SPEED_CAP) s.speed = SHIELD_SPEED_CAP;
   s.thetaZero = dt * SHIELD_ROTATION_RATE * s.speed + s.thetaZero;
   f32 half = s.thetaZero * 0.5f;
   f32 sn = (f32)sin(half);
@@ -341,6 +346,7 @@ void CShieldManager::AdvanceShield(Shield& s, f32 dt)
 void CShieldManager::AdvanceZShield(ZShield& z, f32 dt)
 {
   z.speed += dt * 0.8f;
+  if (z.speed > SHIELD_SPEED_CAP) z.speed = SHIELD_SPEED_CAP;
   z.theta += z.speed * dt;
   Mat4 m = ZRotation(z.theta);
   m.m[12] += m.m[0] * 2.0f;

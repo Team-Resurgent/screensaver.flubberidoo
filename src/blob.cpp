@@ -39,9 +39,12 @@ bool Bloblet::Update(CBlobSim* sim, f32 elapsed, f32 dt)
     fWobbleDirection -= (fWobble - 1.0f) * dt * 1000.0f;
   }
 
-  f32 timeProg = FMax(0.0f, (elapsed - BLOB_STATIC_END_TIME) * OO_MAX_INTENSITY_DELTA);
+  // Forever mode: clamp the ramp to full (don't keep extending) and cap the
+  // elapsed-driven speed-up so the bloblet wobble stays bounded, not frantic.
+  f32 timeProg = FMin(1.0f, FMax(0.0f, (elapsed - BLOB_STATIC_END_TIME) * OO_MAX_INTENSITY_DELTA));
+  f32 accelElapsed = FMin(elapsed, 8.0f);
   f32 t = fTimeMultiple * (elapsed - fStartTime);
-  t *= 1.4f * (1.0f + elapsed / 10.0f);
+  t *= 1.4f * (1.0f + accelElapsed / 10.0f);
   f32 s = (f32)sin(t);
   f32 sm = (f32)fabs(s);
   sm = 1.0f - (1.0f - sm) * (f32)sqrt(1.0f - sm);

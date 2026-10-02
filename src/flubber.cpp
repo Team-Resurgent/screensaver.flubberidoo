@@ -63,6 +63,13 @@ static void MakePulses(QuickRand& rng, FlubPulse* pulses)
 // and the 12 pulses give it its heartbeat. (Original ramped base 0 -> ~0.5 over
 // the demo and faded in; that caused a brightness reset at each loop point.)
 static const f32 STEADY_BASE = 0.5f;
+// Loop the heartbeat forever: fold time back into one pulse cycle so the 12
+// pulses keep firing without the sim clock ever rewinding.
+static f32 PulsePhase(f32 t)
+{
+  if (t < BLOB_PULSE_START) return t;
+  return BLOB_PULSE_START + (f32)fmod(t - BLOB_PULSE_START, BLOB_PULSE_ELAPSED);
+}
 static Energy IntensityAt(f32 t, const FlubPulse* pulses)
 {
   Energy e;
@@ -332,9 +339,11 @@ void CFlubber::Update(f32 dtSeconds)
   if (dtSeconds < 0.0f)       dtSeconds = 0.0f;
   else if (dtSeconds > 0.25f) dtSeconds = 0.25f;
 
+  // The blob + shield sims run FOREVER on a continuously growing clock: never
+  // rewind it, so Seek() never hits its Restart() path and there is no visible
+  // reset. The 12-pulse "heartbeat" is looped separately (PulsePhase) and the
+  // shields reach a bounded steady spin + hold their fade-in (see shields.cpp).
   m_time += dtSeconds;
-  while (m_time >= FINISH_START_TIME)
-    m_time -= FINISH_START_TIME;   // blob/shield sims restart on rewind
 
   m_flyTime += dtSeconds;          // continuous clock for the fly-by camera
   AdvanceSceneCycle(dtSeconds);
@@ -499,7 +508,7 @@ bool CFlubber::Draw()
 
   // Intensity once per frame; advance the blob sim before any pass reads it
   // (the scene light position depends on the bloblet positions).
-  Energy e = IntensityAt(m_time, m_pulses);
+  Energy e = IntensityAt(PulsePhase(m_time), m_pulses);
   m_eBase = e.base; m_ePulse = e.pulse; m_eBlob = e.blob;
   if (m_blob) m_blob->Seek(m_time);
 
