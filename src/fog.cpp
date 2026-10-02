@@ -13,6 +13,13 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xgraphics.h>         // XGSwizzleRect (the plasma texture must be swizzled)
+
+// xgraphics for XGSwizzleRect. flubber.cpp already pulls xgraphics.lib for the
+// production .xbs; the standalone runner links xgraphics itself.
+#ifndef FLUBBERIDOO_NO_DX8_LIB_PRAGMA
+#pragma comment(lib, "xgraphics.lib")
+#endif
 
 #ifndef min
 #define min(a,b) (((a) < (b)) ? (a) : (b))
