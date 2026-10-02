@@ -397,15 +397,17 @@ static void BuildFlyCam(f32 t, Vec3& eye, Vec3& look)
 {
   const f32 TWO_PI = 2.0f * PI;
   const f32 ORBIT_PERIOD = 48.0f;              // seconds for a full 360 orbit
-  const f32 R_MID = 60.0f, R_AMP = 15.0f, R_PERIOD = 13.0f;   // zoom 45..75 (boot band)
-  const f32 PHI_AMP = 0.6f, PHI_PERIOD = 19.0f;               // rise/fall ~+-34 deg
+  const f32 R_MID = 62.0f, R_AMP = 13.0f, R_PERIOD = 13.0f;   // perimeter zoom 49..75
+  const f32 Z_AMP = 35.0f, Z_PERIOD = 19.0f;                  // up/down bob height
 
+  // Cylindrical, not spherical: the horizontal distance stays at the perimeter
+  // radius regardless of height, so rising/dipping never pulls the camera inward
+  // into the tall pipe geometry. It orbits the full 360 and bobs up and down.
   f32 theta = (TWO_PI / ORBIT_PERIOD) * t;
-  f32 phi   = PHI_AMP * (f32)sin((TWO_PI / PHI_PERIOD) * t);
   f32 rad   = R_MID + R_AMP * (f32)sin((TWO_PI / R_PERIOD) * t);
+  f32 z     = Z_AMP * (f32)sin((TWO_PI / Z_PERIOD) * t);
 
-  f32 cp = (f32)cos(phi), sp = (f32)sin(phi);
-  eye  = Vec3(rad * cp * (f32)cos(theta), rad * cp * (f32)sin(theta), rad * sp);
+  eye  = Vec3(rad * (f32)cos(theta), rad * (f32)sin(theta), z);
   look = Vec3(0.0f, 0.0f, 0.0f);
 }
 

@@ -36,6 +36,13 @@ static const f32   MAIN_FOG_RAD  = 40.0f;
 // Steady ambient green add (cinematic: replaces the boot-anim finish flash).
 static const f32   FOG_STEADY_GLOW = 0.15f;
 
+// Re-draw the scene geometry into the density map so nearer surfaces carve the
+// fog (volumetric occlusion). The intensity pass uses its own dedicated LINEAR
+// depth surface (m_intensityZ): a linear depth forces the paired colour RT into
+// a linear, directly-sampleable layout. Reusing the tiled main depth made the RT
+// tiled, so sampling it read a swizzle "boxes" checkerboard.
+#define FOG_CARVE_GEOMETRY 1
+
 /* ---------------------------------------------------- shader loaders ------- */
 static DWORD FogLoadPS(LPDIRECT3DDEVICE8 dev, const BYTE* blob)
 {
@@ -149,7 +156,7 @@ static LPDIRECT3DTEXTURE8 BuildPlasmaTexture(LPDIRECT3DDEVICE8 dev)
 /* ------------------------------------------------------------- CFog -------- */
 CFog::CFog()
   : m_dev(null), m_w(0), m_h(0), m_quadVB(null), m_backVB(null), m_plasmaTex(null),
-    m_intensityU(null), m_intensityR(null),
+    m_intensityU(null), m_intensityR(null), m_intensityZ(null),
     m_vsFog(0), m_psFog(0), m_vsZ(0), m_psZ(0) {}
 
 CFog::~CFog() { Release(); }
@@ -161,6 +168,7 @@ void CFog::Release()
   SAFE_RELEASE(m_plasmaTex);
   SAFE_RELEASE(m_intensityU);
   SAFE_RELEASE(m_intensityR);
+  SAFE_RELEASE(m_intensityZ);
   if (m_dev)
   {
     if (m_vsFog) m_dev->DeleteVertexShader(m_vsFog);
@@ -177,21 +185,21 @@ bool CFog::Create(LPDIRECT3DDEVICE8 dev, int screenW, int screenH)
   Release();
   m_dev = dev;
 
-  // Intensity RT: a SQUARE power-of-two, and <= the backbuffer so the main depth
-  // surface can be reused (exactly as BakeEnvCube's 128^3 cube RT does). A
-  // non-square RT (e.g. 512x256) samples back with an NV2A swizzle mismatch -- a
-  // checkerboard across the frame; a square RT swizzles cleanly like the cube.
-  // Clip-space normalisation keeps the (4:3) scene aligned when sampled full-screen.
-  int side = 256;
-  if (side > screenW) side = screenW;
-  if (side > screenH) side = screenH;
-  m_w = m_h = side;
+  // Intensity RT + a dedicated LINEAR depth (m_intensityZ). The linear depth
+  // forces the paired colour RT into a linear, directly-sampleable layout; with
+  // the tiled main depth the RT was tiled and sampled back as a swizzle
+  // checkerboard. Matches BootAnimRXDK green_fog.cpp (LIN_D24S8 depth).
+  m_w = 512; if (m_w > screenW) m_w = screenW;
+  m_h = 256; if (m_h > screenH) m_h = screenH;
   if (m_w <= 0 || m_h <= 0) return false;
 
   if (FAILED(dev->CreateTexture(m_w, m_h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
                                 D3DPOOL_DEFAULT, &m_intensityU))) return false;
   if (FAILED(dev->CreateTexture(m_w, m_h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
                                 D3DPOOL_DEFAULT, &m_intensityR))) return false;
+  if (FAILED(dev->CreateDepthStencilSurface(m_w, m_h, D3DFMT_LIN_D24S8,
+                                            D3DMULTISAMPLE_2_SAMPLES_MULTISAMPLE_LINEAR,
+                                            &m_intensityZ))) return false;
 
   // Composite quad (clip-space fullscreen). tu0/tv0 sample the intensity map;
   // tu1/tv1 seed the (camera-scrolled) plasma lookup. green_fog.cpp lines 49-69.
@@ -260,7 +268,7 @@ void CFog::RenderIntensity(LPDIRECT3DDEVICE8 dev, CScene& scene, f32 fpos, const
   if (FAILED(m_intensityU->GetSurfaceLevel(0, &surf)))
   { if (oldRT) oldRT->Release(); if (oldZ) oldZ->Release(); return; }
 
-  dev->SetRenderTarget(surf, oldZ);           // reuse the main depth (>= m_w/m_h)
+  dev->SetRenderTarget(surf, m_intensityZ);   // dedicated LINEAR depth (sampleable RT)
   if (SUCCEEDED(dev->BeginScene()))
   {
     dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL,

@@ -66,6 +66,7 @@ private:
   LPDIRECT3DTEXTURE8      m_plasmaTex;  // one A8 diamond-square plasma (bound x3)
   LPDIRECT3DTEXTURE8      m_intensityU; // written this frame
   LPDIRECT3DTEXTURE8      m_intensityR; // sampled this frame (swapped)
+  LPDIRECT3DSURFACE8      m_intensityZ; // dedicated LINEAR depth for the RT pass
 
   DWORD m_vsFog, m_psFog;   // greenfog shaders
   DWORD m_vsZ,   m_psZ;     // scene_zr (depth) shaders
