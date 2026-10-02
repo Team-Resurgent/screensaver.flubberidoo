@@ -100,7 +100,10 @@ bool BlobBump::Create(CBlobSim* sim, f32 curTime, Bloblet* spare)
   vDirection[0] = d[0] / len; vDirection[1] = d[1] / len; vDirection[2] = d[2] / len;
   vPosition[0] = vPosition[1] = vPosition[2] = 0.0f;
 
-  f32 timeProg = FMax(0.0f, (curTime - BLOB_STATIC_END_TIME) * OO_MAX_INTENSITY_DELTA);
+  // Clamp to 1: this feeds each bump's persistent magnitude, and the original
+  // only reached ~1 by its 5.2s reset. Unclamped, a forever-growing clock gave
+  // every regenerated bump an ever-larger magnitude -> the blob grew without end.
+  f32 timeProg = FMin(1.0f, FMax(0.0f, (curTime - BLOB_STATIC_END_TIME) * OO_MAX_INTENSITY_DELTA));
   f32 radMagRand = rnd.Rand01();
 
   fRadius = radMagRand * 0.4f + 0.4f;
