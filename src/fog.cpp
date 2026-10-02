@@ -177,10 +177,15 @@ bool CFog::Create(LPDIRECT3DDEVICE8 dev, int screenW, int screenH)
   Release();
   m_dev = dev;
 
-  // Intensity RT: keep it <= the backbuffer so the main depth surface can be
-  // reused (as BakeEnvCube does). 512x256 is ample for a smooth density map.
-  m_w = min(512, screenW);
-  m_h = min(256, screenH);
+  // Intensity RT: a SQUARE power-of-two, and <= the backbuffer so the main depth
+  // surface can be reused (exactly as BakeEnvCube's 128^3 cube RT does). A
+  // non-square RT (e.g. 512x256) samples back with an NV2A swizzle mismatch -- a
+  // checkerboard across the frame; a square RT swizzles cleanly like the cube.
+  // Clip-space normalisation keeps the (4:3) scene aligned when sampled full-screen.
+  int side = 256;
+  if (side > screenW) side = screenW;
+  if (side > screenH) side = screenH;
+  m_w = m_h = side;
   if (m_w <= 0 || m_h <= 0) return false;
 
   if (FAILED(dev->CreateTexture(m_w, m_h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
