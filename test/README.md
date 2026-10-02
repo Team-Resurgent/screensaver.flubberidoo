@@ -33,10 +33,9 @@ stepping, watches).
 ## Build & run
 
 Open the solution in VS2003 and build **FlubberidooRunner** (Release|Xbox or
-Debug|Xbox). The pre-build step copies `screensaver.flubberidoo\resources\
-bootanim.ini` into the output's `resources\`, and Xbox Deployment pushes it to the
-console. Launch `FlubberidooRunner.xbe` (xemu / Cxbx-Reloaded / devkit); the
-screensaver reads its theme from `D:\resources\bootanim.ini`.
+Debug|Xbox), then launch `FlubberidooRunner.xbe` (xemu / Cxbx-Reloaded / devkit).
+The runner has no Kodi settings UI, so it renders with the engine's compiled-in
+theme defaults — no asset files need to be deployed alongside the `.xbe`.
 
 Set breakpoints anywhere in `main.cpp` / `flubber.cpp` and F5 to debug. There is
 no built-in quit — stop the emulator or reset.

@@ -1,6 +1,6 @@
 /*
  *  flubber.h — Flubberidoo engine: a looping D3D8 re-creation of the Xbox boot
- *  animation (blob + scene + shields + plasma), themed from bootanim.ini.
+ *  animation (blob + scene + shields + plasma), themed from the addon settings.
  *
  *  Analogous to the old CMatrixTrails engine: the addon adapter (main.cpp) owns
  *  one CFlubber, hands it the device + screen rect + ini path in RestoreDevice(),

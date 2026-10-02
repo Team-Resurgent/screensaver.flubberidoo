@@ -42,14 +42,11 @@
 			<Tool
 				Name="VCPostBuildEventTool"/>
 			<Tool
-				Name="VCPreBuildEventTool"
-				Description="Staging screensaver assets into $(OutDir)..."
-				CommandLine="if not exist &quot;$(OutDir)\resources&quot; mkdir &quot;$(OutDir)\resources&quot;&#x0D;&#x0A;copy /Y &quot;$(ProjectDir)..\screensaver.flubberidoo\resources\bootanim.ini&quot; &quot;$(OutDir)\resources\bootanim.ini&quot;"/>
+				Name="VCPreBuildEventTool"/>
 			<Tool
 				Name="VCPreLinkEventTool"/>
 			<Tool
-				Name="XboxDeploymentTool"
-				AdditionalFiles="resources\bootanim.ini=$(OutDir)\resources\bootanim.ini"/>
+				Name="XboxDeploymentTool"/>
 			<Tool
 				Name="XboxImageTool"/>
 		</Configuration>
@@ -85,14 +82,11 @@
 			<Tool
 				Name="VCPostBuildEventTool"/>
 			<Tool
-				Name="VCPreBuildEventTool"
-				Description="Staging screensaver assets into $(OutDir)..."
-				CommandLine="if not exist &quot;$(OutDir)\resources&quot; mkdir &quot;$(OutDir)\resources&quot;&#x0D;&#x0A;copy /Y &quot;$(ProjectDir)..\screensaver.flubberidoo\resources\bootanim.ini&quot; &quot;$(OutDir)\resources\bootanim.ini&quot;"/>
+				Name="VCPreBuildEventTool"/>
 			<Tool
 				Name="VCPreLinkEventTool"/>
 			<Tool
-				Name="XboxDeploymentTool"
-				AdditionalFiles="resources\bootanim.ini=$(OutDir)\resources\bootanim.ini"/>
+				Name="XboxDeploymentTool"/>
 			<Tool
 				Name="XboxImageTool"/>
 		</Configuration>

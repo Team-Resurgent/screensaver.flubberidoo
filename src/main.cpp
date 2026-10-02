@@ -2,8 +2,9 @@
  *  Flubberidoo — Kodi/XBMC4Xbox screensaver adapter.
  *
  *  Thin bridge between Kodi's CInstanceScreensaver and the CFlubber engine:
- *  Start() acquires the device + loads resources/bootanim.ini, Render() steps
- *  the clock and draws one frame. All the interesting work is in the engine.
+ *  Start() acquires the device + builds the theme (from Kodi addon settings in
+ *  production, compiled-in defaults in the runner), Render() steps the clock and
+ *  draws one frame. All the interesting work is in the engine.
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -13,7 +14,6 @@
 #include "timer.h"
 
 #include <kodi/addon-instance/Screensaver.h>
-#include <kodi/Filesystem.h>
 
 #include <string>
 
@@ -47,15 +47,12 @@ bool CScreensaverFlubberidoo::Start()
 
   m_flubber = new CFlubber();
 
-  // Build the theme. CTheme's ctor sets the stock defaults (shields off); then
-  // the production addon overlays the Kodi addon settings (resources/settings.xml),
-  // while the standalone runner overlays resources\bootanim.ini (no settings UI).
+  // Build the theme. CTheme's ctor sets the compiled-in defaults (shields off).
+  // The production addon overlays the Kodi addon settings (resources/settings.xml)
+  // on top -- any setting not present keeps its default. The standalone runner has
+  // no settings system, so it simply uses the compiled-in defaults (no files).
   CTheme theme;
-#ifdef FLUBBERIDOO_NO_DX8_LIB_PRAGMA
-  std::string iniPath = kodi::vfs::TranslateSpecialProtocol(
-      kodi::addon::GetAddonPath().append("resources\\bootanim.ini"));
-  theme.Load(iniPath);
-#else
+#ifndef FLUBBERIDOO_NO_DX8_LIB_PRAGMA
   theme.blobRender      = kodi::addon::GetSettingBoolean("BlobRender",      theme.blobRender);
   theme.blobWireframe   = kodi::addon::GetSettingBoolean("BlobWireframe",   theme.blobWireframe);
   theme.blobColor       = CTheme::HexColor(kodi::addon::GetSettingString("BlobColor", "40ff26").c_str(), 0x40ff26);

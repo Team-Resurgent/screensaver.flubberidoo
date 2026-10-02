@@ -7,8 +7,8 @@
  *  directly. Because the screensaver code is compiled into the runner, it is
  *  fully source-level debuggable in Visual Studio (breakpoints, stepping).
  *
- *  Deployment: resources\bootanim.ini next to the .xbe (loaded as
- *  D:\resources\bootanim.ini).
+ *  The runner has no Kodi settings UI, so it just renders with the engine's
+ *  compiled-in theme defaults -- no asset files need to be deployed.
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
  */

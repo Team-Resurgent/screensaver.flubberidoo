@@ -4,7 +4,7 @@ A faithful D3D8 re-creation of the classic Xbox boot animation as an
 [XBMC4Xbox](https://github.com/Team-Resurgent) screensaver: the gooey "flubber"
 blob pulsing at the heart of a slowly rotating scene while the camera drifts
 around it, wrapped in shimmering shields. It loops endlessly — **no ending Xbox
-logo, no sound** — and is fully themeable from `resources/bootanim.ini`.
+logo, no sound** — and is fully themeable from the addon settings.
 
 Ported from [flubberforge](https://github.com/Team-Resurgent/flubberforge) (itself
 a WebGL re-port of the original Xbox `BootAnim` C++), back to native Xbox D3D8.
@@ -24,6 +24,8 @@ the full addon.
 
 ## Theming
 
-Edit [`screensaver.flubberidoo/resources/bootanim.ini`](screensaver.flubberidoo/resources/bootanim.ini)
+Open the screensaver's **Configure** dialog in Kodi (its settings are defined in
+[`screensaver.flubberidoo/resources/settings.xml`](screensaver.flubberidoo/resources/settings.xml))
 to recolour the blob / scene / shields / plasma, or toggle individual layers.
-The camera is a fixed cinematic fly-by (no longer selectable).
+The camera is a fixed cinematic fly-by (not configurable). The standalone runner
+has no settings UI and always uses the compiled-in defaults.
