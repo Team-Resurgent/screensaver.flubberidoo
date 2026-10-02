@@ -22,7 +22,6 @@ static CRGBA ColorFromRGB(unsigned long v)
 
 void CTheme::SetDefaults()
 {
-  cameraMode      = 1;
 
   blobRender      = true;
   blobWireframe   = false;
@@ -110,9 +109,7 @@ bool CTheme::Load(const std::string& path)
     // lower-case the key for case-insensitive compare
     for (char* k = key; *k; ++k) *k = (char)tolower((unsigned char)*k);
 
-    if      (!strcmp(key, "cameramode"))      cameraMode      = ParseIntClamped(val, cameraMode, 0, 15);
-
-    else if (!strcmp(key, "blobrender"))      blobRender      = ParseBool(val, blobRender);
+    if      (!strcmp(key, "blobrender"))      blobRender      = ParseBool(val, blobRender);
     else if (!strcmp(key, "blobwireframe"))   blobWireframe   = ParseBool(val, blobWireframe);
     else if (!strcmp(key, "blobcolor"))       blobColor       = ColorFromRGB(ParseColorRaw(val, 0x40ff26));
     else if (!strcmp(key, "blobglow"))        blobGlow        = ColorFromRGB(ParseColorRaw(val, 0xa0ff40));

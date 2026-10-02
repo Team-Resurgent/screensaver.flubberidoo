@@ -24,9 +24,6 @@ public:
   // Returns false only if the path could not be opened (defaults remain in place).
   bool Load(const std::string& path);
 
-  // Camera
-  int    cameraMode;      // 1..15, selects a built-in path (clamped on use)
-
   // Blob
   bool   blobRender;
   bool   blobWireframe;

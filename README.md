@@ -25,5 +25,5 @@ the full addon.
 ## Theming
 
 Edit [`screensaver.flubberidoo/resources/bootanim.ini`](screensaver.flubberidoo/resources/bootanim.ini)
-to recolour the blob / scene / shields / plasma, choose a camera path
-(`CameraMode = 1..15`), or toggle individual layers.
+to recolour the blob / scene / shields / plasma, or toggle individual layers.
+The camera is a fixed cinematic fly-by (no longer selectable).

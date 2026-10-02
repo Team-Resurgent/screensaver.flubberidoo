@@ -260,8 +260,6 @@ bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, 
 
   m_proj = BuildPerspectiveFovLH(PI * 0.25f, (f32)m_w / (f32)m_h, 0.4f, 800.0f);
 
-  m_camera.Build(m_theme.cameraMode);
-
   // app RNG: pulses are drawn first, then the shield manager continues from the
   // SAME generator (shields.js shares state.pulseRand). The blob sim owns a
   // separate, identically-seeded RNG, so it doesn't clash.
@@ -400,8 +398,8 @@ void CFlubber::AdvanceSceneCycle(f32 dt)
 // Cinematic fly-by: orbit the centre continuously while a slower sine lifts and
 // drops the elevation and a third sine zooms in and out, always looking at the
 // centre. The three periods are incommensurate so the path never obviously
-// repeats, giving a fluid, ever-changing fly-by. (Replaces the boot spline;
-// m_camera is still built for a possible future ini toggle.)
+// repeats, giving a fluid, ever-changing fly-by. (Replaces the boot camera
+// spline entirely, so there is no CameraMode setting any more.)
 static void BuildFlyCam(f32 t, Vec3& eye, Vec3& look)
 {
   const f32 TWO_PI = 2.0f * PI;

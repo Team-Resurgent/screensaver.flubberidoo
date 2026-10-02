@@ -17,7 +17,6 @@
 #include "flubconst.h"
 #include "theme.h"
 #include "blob.h"
-#include "camera.h"
 #include "scene.h"
 #include "shields.h"
 #include "fog.h"
@@ -85,7 +84,6 @@ private:
   Vec3  m_eye;                  // current camera position (for blob fresnel)
   Vec3  m_look;                 // current camera look-at point (shield sort)
 
-  CCamera   m_camera;
   QuickRand m_appRand;          // app RNG: pulses first, then shields draw from it
   FlubPulse m_pulses[12];
   f32       m_eBase, m_ePulse, m_eBlob;   // intensityAt(m_time), computed per frame
