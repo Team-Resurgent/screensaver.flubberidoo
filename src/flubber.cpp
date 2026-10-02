@@ -406,14 +406,14 @@ static void BuildFlyCam(f32 t, Vec3& eye, Vec3& look)
 {
   const f32 TWO_PI = 2.0f * PI;
   const f32 ORBIT_PERIOD = 48.0f;              // seconds for a full 360 orbit
-  const f32 R_MID = 56.0f, R_AMP = 12.0f, R_PERIOD = 13.0f;   // perimeter zoom
-  const f32 Z_AMP = 32.0f, Z_PERIOD = 19.0f;                  // up/down bob height
-  const f32 R_ZLIFT = 0.45f;   // push the orbit radius out as it rises/dips
+  const f32 R_MID = 60.0f, R_AMP = 13.0f, R_PERIOD = 13.0f;   // perimeter zoom 47..73
+  const f32 Z_AMP = 15.0f, Z_PERIOD = 19.0f;                  // up/down bob height
+  const f32 R_ZLIFT = 0.4f;    // small out-arc near top/bottom of the bob
 
-  // Cylindrical orbit with a lift: the horizontal distance stays at the perimeter
-  // radius (so height never pulls it inward into the geometry) AND widens as the
-  // camera rises or dips, so it arcs up-and-over the top/bottom pipes rather than
-  // straight into them. Orbits the full 360 and bobs up and down.
+  // Measured scene extent (tools): near the equator (|z|<~17) geometry only
+  // reaches r~70, but the top/bottom tubes flare out to r~135 at |z|~22..37.
+  // So keep the vertical bob BELOW that flare (|z| <= 15) and arc the radius out
+  // a touch at the extremes, so a circular orbit never drives into a tube.
   f32 theta = (TWO_PI / ORBIT_PERIOD) * t;
   f32 z     = Z_AMP * (f32)sin((TWO_PI / Z_PERIOD) * t);
   f32 rad   = R_MID + R_AMP * (f32)sin((TWO_PI / R_PERIOD) * t) + R_ZLIFT * (f32)fabs(z);
