@@ -1,13 +1,121 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Flubberidoo is themed from resources/bootanim.ini (colors, camera path, which
-  layers render), not from Kodi settings, so there are no in-app settings. Edit
-  bootanim.ini to recolour the blob/scene/shields or pick a camera path.
--->
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings version="1">
-  <section id="addon" label="0" help="0">
-    <category id="main" label="128" help="0">
-      <group id="1" label="0"/>
+  <section id="addon">
+    <category id="general" label="General">
+      <group id="1" label="Blob">
+        <setting id="BlobRender" type="boolean" label="Render blob">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
+
+        <setting id="BlobWireframe" type="boolean" label="Wireframe">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
+
+        <setting id="BlobColor" type="string" label="Blob color">
+          <level>0</level>
+          <default>40ff26</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+
+        <setting id="BlobGlow" type="string" label="Blob glow">
+          <level>0</level>
+          <default>a0ff40</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+      </group>
+
+      <group id="2" label="Scene">
+        <setting id="SceneRender" type="boolean" label="Render scene">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
+
+        <setting id="SceneWireframe" type="boolean" label="Wireframe">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
+
+        <setting id="SceneIntensity" type="integer" label="Intensity">
+          <level>0</level>
+          <default>2</default>
+          <constraints>
+            <minimum>0</minimum>
+            <maximum>10</maximum>
+            <step>1</step>
+          </constraints>
+          <control type="spinner" format="integer"/>
+        </setting>
+
+        <setting id="SceneAmbient" type="string" label="Ambient color">
+          <level>0</level>
+          <default>35ff1a</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+
+        <setting id="SceneDiffuse" type="string" label="Diffuse color">
+          <level>0</level>
+          <default>35ff1a</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+
+        <setting id="SceneSpecular" type="string" label="Specular color">
+          <level>0</level>
+          <default>35ff1a</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+      </group>
+
+      <group id="3" label="Shields">
+        <setting id="ShieldRender" type="boolean" label="Render shields">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
+
+        <setting id="ShieldWireframe" type="boolean" label="Wireframe">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
+
+        <setting id="Shield" type="string" label="Shield color">
+          <level>0</level>
+          <default>66ff4d</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+      </group>
+
+      <group id="4" label="Plasma">
+        <setting id="PlasmaRender" type="boolean" label="Render plasma">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
+
+        <setting id="Plasma1" type="string" label="Plasma color 1">
+          <level>0</level>
+          <default>00ff00</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+
+        <setting id="Plasma2" type="string" label="Plasma color 2">
+          <level>0</level>
+          <default>9fff66</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+
+        <setting id="Plasma3" type="string" label="Plasma color 3">
+          <level>0</level>
+          <default>a0ff60</default>
+          <control type="colorbutton" format="hex"/>
+        </setting>
+      </group>
     </category>
   </section>
 </settings>

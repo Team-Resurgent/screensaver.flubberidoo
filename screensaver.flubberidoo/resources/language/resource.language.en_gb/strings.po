@@ -21,5 +21,5 @@ msgid "Flubberidoo boot-animation screensaver"
 msgstr ""
 
 msgctxt "Addon Description"
-msgid "A faithful D3D8 re-creation of the classic Xbox boot animation. Loops endlessly (no end logo, no sound). Themeable from resources/bootanim.ini."
+msgid "A faithful re-creation of the classic Xbox boot animation. Loops endlessly (no end logo, no sound). Themeable from the addon settings."
 msgstr ""

@@ -23,6 +23,6 @@
       <screenshot>resources/screenshot-02.jpg</screenshot>
     </assets>
     <summary lang="en_GB">Flubberidoo boot-animation screensaver</summary>
-    <description lang="en_GB">A faithful D3D8 re-creation of the classic Xbox boot animation: the gooey &quot;flubber&quot; blob pulsing at the heart of a slowly rotating scene while the camera drifts around it, wrapped in shimmering shields. Loops endlessly (no end logo, no sound). Fully themeable from resources/bootanim.ini.</description>
+    <description lang="en_GB">A faithful D3D8 re-creation of the classic Xbox boot animation: the gooey &quot;flubber&quot; blob pulsing at the heart of a slowly rotating scene while the camera drifts around it, wrapped in shimmering shields. Loops endlessly (no end logo, no sound). Fully themeable from the addon settings.</description>
   </extension>
 </addon>

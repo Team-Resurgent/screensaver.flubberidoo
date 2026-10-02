@@ -248,14 +248,14 @@ CFlubber::~CFlubber()
 }
 
 bool CFlubber::RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, int height,
-                             const std::string& iniPath)
+                             const CTheme& theme)
 {
   m_dev = device;
   m_x = x; m_y = y; m_w = width; m_h = height;
   if (!m_dev || m_w <= 0 || m_h <= 0)
     return false;
 
-  m_theme.Load(iniPath);          // missing ini just keeps the stock look
+  m_theme = theme;                // caller built it from settings (addon) or ini (runner)
   m_time = 0.0f;
 
   m_proj = BuildPerspectiveFovLH(PI * 0.25f, (f32)m_w / (f32)m_h, 0.4f, 800.0f);

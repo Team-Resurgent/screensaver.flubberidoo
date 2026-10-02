@@ -22,7 +22,14 @@ public:
   void SetDefaults();
   // Load overrides from an .ini file. Missing file / missing keys keep defaults.
   // Returns false only if the path could not be opened (defaults remain in place).
+  // Used by the standalone runner; the production addon fills fields from Kodi
+  // addon settings in the adapter (main.cpp) instead.
   bool Load(const std::string& path);
+
+  // Parse a "RRGGBB" hex colour string (optional '#'/'0x' prefix) into a CRGBA,
+  // falling back to 'def' (an 0xRRGGBB value) when the string is empty/invalid.
+  // Used by the adapter to turn Kodi colorbutton (hex) settings into colours.
+  static CRGBA HexColor(const char* s, unsigned long def);
 
   // Blob
   bool   blobRender;

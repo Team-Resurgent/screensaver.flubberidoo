@@ -47,10 +47,35 @@ bool CScreensaverFlubberidoo::Start()
 
   m_flubber = new CFlubber();
 
+  // Build the theme. CTheme's ctor sets the stock defaults (shields off); then
+  // the production addon overlays the Kodi addon settings (resources/settings.xml),
+  // while the standalone runner overlays resources\bootanim.ini (no settings UI).
+  CTheme theme;
+#ifdef FLUBBERIDOO_NO_DX8_LIB_PRAGMA
   std::string iniPath = kodi::vfs::TranslateSpecialProtocol(
       kodi::addon::GetAddonPath().append("resources\\bootanim.ini"));
+  theme.Load(iniPath);
+#else
+  theme.blobRender      = kodi::addon::GetSettingBoolean("BlobRender",      theme.blobRender);
+  theme.blobWireframe   = kodi::addon::GetSettingBoolean("BlobWireframe",   theme.blobWireframe);
+  theme.blobColor       = CTheme::HexColor(kodi::addon::GetSettingString("BlobColor", "40ff26").c_str(), 0x40ff26);
+  theme.blobGlow        = CTheme::HexColor(kodi::addon::GetSettingString("BlobGlow",  "a0ff40").c_str(), 0xa0ff40);
+  theme.sceneRender     = kodi::addon::GetSettingBoolean("SceneRender",     theme.sceneRender);
+  theme.sceneWireframe  = kodi::addon::GetSettingBoolean("SceneWireframe",  theme.sceneWireframe);
+  theme.sceneIntensity  = kodi::addon::GetSettingInt("SceneIntensity",      theme.sceneIntensity);
+  theme.sceneAmbient    = CTheme::HexColor(kodi::addon::GetSettingString("SceneAmbient",  "35ff1a").c_str(), 0x35ff1a);
+  theme.sceneDiffuse    = CTheme::HexColor(kodi::addon::GetSettingString("SceneDiffuse",  "35ff1a").c_str(), 0x35ff1a);
+  theme.sceneSpecular   = CTheme::HexColor(kodi::addon::GetSettingString("SceneSpecular", "35ff1a").c_str(), 0x35ff1a);
+  theme.shieldRender    = kodi::addon::GetSettingBoolean("ShieldRender",    theme.shieldRender);
+  theme.shieldWireframe = kodi::addon::GetSettingBoolean("ShieldWireframe", theme.shieldWireframe);
+  theme.shield          = CTheme::HexColor(kodi::addon::GetSettingString("Shield", "66ff4d").c_str(), 0x66ff4d);
+  theme.plasmaRender    = kodi::addon::GetSettingBoolean("PlasmaRender",    theme.plasmaRender);
+  theme.plasma1         = CTheme::HexColor(kodi::addon::GetSettingString("Plasma1", "00ff00").c_str(), 0x00ff00);
+  theme.plasma2         = CTheme::HexColor(kodi::addon::GetSettingString("Plasma2", "9fff66").c_str(), 0x9fff66);
+  theme.plasma3         = CTheme::HexColor(kodi::addon::GetSettingString("Plasma3", "a0ff60").c_str(), 0xa0ff60);
+#endif
 
-  if (!m_flubber->RestoreDevice((LPDIRECT3DDEVICE8)Device(), X(), Y(), Width(), Height(), iniPath))
+  if (!m_flubber->RestoreDevice((LPDIRECT3DDEVICE8)Device(), X(), Y(), Width(), Height(), theme))
   {
     Stop();
     return false;

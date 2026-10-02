@@ -35,7 +35,7 @@ void CTheme::SetDefaults()
   sceneDiffuse    = ColorFromRGB(0x35ff1a);
   sceneSpecular   = ColorFromRGB(0x35ff1a);
 
-  shieldRender    = true;
+  shieldRender    = false;
   shieldWireframe = false;
   shield          = ColorFromRGB(0x66ff4d);
 
@@ -43,6 +43,19 @@ void CTheme::SetDefaults()
   plasma1         = ColorFromRGB(0x00ff00);
   plasma2         = ColorFromRGB(0x9fff66);
   plasma3         = ColorFromRGB(0xa0ff60);
+}
+
+CRGBA CTheme::HexColor(const char* s, unsigned long def)
+{
+  unsigned long v = def;
+  if (s && *s)
+  {
+    const char* p = s;
+    if (*p == '#')                                 ++p;
+    else if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) p += 2;
+    if (*p) v = strtoul(p, 0, 16);
+  }
+  return ColorFromRGB(v);
 }
 
 /* --- small value parsers ------------------------------------------------- */

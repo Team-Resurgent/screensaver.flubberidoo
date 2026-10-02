@@ -41,10 +41,10 @@ public:
   CFlubber();
   ~CFlubber();
 
-  // Acquire the render target and load the theme. 'iniPath' is the full path to
-  // bootanim.ini (may be empty / missing -> stock green theme).
+  // Acquire the render target and adopt the given theme. The caller builds the
+  // theme from Kodi addon settings (production) or from bootanim.ini (runner).
   bool RestoreDevice(LPDIRECT3DDEVICE8 device, int x, int y, int width, int height,
-                     const std::string& iniPath);
+                     const CTheme& theme);
   void Release();
 
   void Update(f32 dtSeconds);   // advance + loop the clock
